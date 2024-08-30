@@ -5,15 +5,12 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, createContext, useContext } from 'react';
 import 'react-native-reanimated';
 
-import { ApplicationProvider } from '@ui-kitten/components';
+import { ApplicationProvider, Layout } from '@ui-kitten/components';
 import * as eva from '@eva-design/eva';
 
 import { customLightTheme } from '../themes/lightTheme';
 import { customDarkTheme } from '../themes/darkTheme';
 
-
-
-// Create a context to hold the theme state
 const ThemeToggleContext = createContext({
   isDarkMode: false,
   toggleTheme: () => {},
@@ -21,7 +18,6 @@ const ThemeToggleContext = createContext({
 
 export const useThemeToggle = () => useContext(ThemeToggleContext);
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -51,10 +47,12 @@ export default function RootLayout() {
     <ThemeToggleContext.Provider value={{ isDarkMode, toggleTheme }}>
       <ApplicationProvider {...eva} theme={theme}>
         <ThemeProvider value={navigationTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
+          <Layout style={{ flex: 1, backgroundColor: theme['background-basic-color-1'] }}>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+          </Layout>
         </ThemeProvider>
       </ApplicationProvider>
     </ThemeToggleContext.Provider>
