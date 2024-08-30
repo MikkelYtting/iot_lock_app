@@ -2,15 +2,17 @@ import { dark as darkTheme } from '@eva-design/eva';
 
 export const customDarkTheme = {
   ...darkTheme,
-  "color-primary-100": "#E8EAF6",
-  "color-primary-200": "#C5CAE9",
-  "color-primary-300": "#9FA8DA",
-  "color-primary-400": "#7986CB",
-  "color-primary-500": "#3F51B5",
-  "color-primary-600": "#3949AB",
-  "color-primary-700": "#303F9F",
-  "color-primary-800": "#283593",
-  "color-primary-900": "#1A237E",
+  "color-primary-100": "#D1C4E9",
+  "color-primary-200": "#B39DDB",
+  "color-primary-300": "#9575CD",
+  "color-primary-400": "#7E57C2",
+  "color-primary-500": "#673AB7", // Purple
+  "color-primary-600": "#5E35B1",
+  "color-primary-700": "#512DA8",
+  "color-primary-800": "#4527A0",
+  "color-primary-900": "#311B92",
+  "text-basic-color": "#FFFFFF", // White text
+  "background-basic-color-1": "#121212", // Dark background
   "text-font-family": "SpaceMono-Regular",
   "text-font-size": 18,
   // Add more customizations as needed

@@ -12,6 +12,7 @@ import { customLightTheme } from '../themes/lightTheme';
 import { customDarkTheme } from '../themes/darkTheme';
 
 
+
 // Create a context to hold the theme state
 const ThemeToggleContext = createContext({
   isDarkMode: false,
