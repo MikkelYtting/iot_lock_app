@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "iot_lock_app",
-    "slug": "iot_lock_app",
+    "name": "ArgusLocks",  
+    "slug": "arguslocks",  
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "arguslocks",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash.png",
@@ -13,9 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.arguslocks.iotlock"  
     },
     "android": {
+      "package": "com.arguslocks.iotlock",  
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"

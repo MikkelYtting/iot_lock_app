@@ -49,7 +49,14 @@ export default function RootLayout() {
         <ThemeProvider value={navigationTheme}>
           <Layout style={{ flex: 1, backgroundColor: theme['background-basic-color-1'] }}>
             <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="index"
+                options={{ headerShown: false }} // Always hide the header on the login screen
+              />
+              <Stack.Screen
+                name="(tabs)"
+                options={{ headerShown: false }} // Adjust this as needed for other screens
+              />
               <Stack.Screen name="+not-found" />
             </Stack>
           </Layout>
