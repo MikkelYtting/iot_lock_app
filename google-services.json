@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "156687663202",
+    "project_id": "iot-lock-982b9",
+    "storage_bucket": "iot-lock-982b9.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:156687663202:android:fc555b3c168c176e8b513b",
+        "android_client_info": {
+          "package_name": "com.arguslocks.iotlock"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAybXIZU4Oj7nHJeg7aO8wzlu-0r9jOSp0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ArgusLocks",  
-    "slug": "arguslocks",  
+    "name": "ArgusLocks",
+    "slug": "arguslocks",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -14,10 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.arguslocks.iotlock"  
+      "bundleIdentifier": "com.arguslocks.iotlock"
     },
     "android": {
-      "package": "com.arguslocks.iotlock",  
+      "package": "com.arguslocks.iotlock",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -33,6 +33,19 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "iosApiKey": "AIzaSyBFmCT4St2XV17f_GBpYwoMIwekz_-ga1A",
+      "androidApiKey": "AIzaSyAybXIZU4Oj7nHJeg7aO8wzlu-0r9jOSp0",
+      "webApiKey": "AIzaSyAO2pnfXOgZ-lnATqxc2sr3_JQ3K1sbA78",
+      "authDomain": "iot-lock-982b9.firebaseapp.com",
+      "projectId": "iot-lock-982b9",
+      "storageBucket": "iot-lock-982b9.appspot.com",
+      "messagingSenderId": "156687663202",
+      "iosAppId": "1:156687663202:ios:15c1f168720f2b5b8b513b",
+      "androidAppId": "1:156687663202:android:fc555b3c168c176e8b513b",
+      "webAppId": "1:156687663202:web:71119478367509078b513b",
+      "measurementId": "G-9L7J9YDTQ9"
     }
   }
 }
