@@ -1,9 +1,8 @@
-import { Tabs } from 'expo-router';
 import React from 'react';
-
+import { Tabs } from 'expo-router';
+import { useColorScheme } from 'react-native';
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
 import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -16,7 +15,16 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="SettingsScreen"
+        name="home/HomeScreen"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'home' : 'home-outline'} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings/SettingsScreen"
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, focused }) => (
@@ -24,7 +32,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Add other screens if necessary */}
     </Tabs>
   );
 }

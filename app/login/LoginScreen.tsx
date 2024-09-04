@@ -1,55 +1,60 @@
 import React, { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Layout, Text, Input, Button } from '@ui-kitten/components';
-import { useThemeToggle } from '../_layout';
-import { auth } from '../../firebase';
+import { auth } from '../../firebase';  // Update your firebase import
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { useRouter } from 'expo-router';
+import { useThemeToggle } from '../_layout';  // Assuming the theme toggle context is here
 
 export default function LoginScreen() {
   const { isDarkMode, toggleTheme } = useThemeToggle();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false); // New state to toggle between login and signup
+  const [isSigningUp, setIsSigningUp] = useState(false);
+  const router = useRouter();
 
-  const handleLoginOrSignup = () => {
+  const handleLogin = () => {
     if (!auth) {
       setError('Firebase authentication is not initialized.');
       return;
     }
 
-    if (isSignUp) {
-      // Sign up flow
-      createUserWithEmailAndPassword(auth, username, password)
-        .then((userCredential) => {
-          console.log('User signed up with:', userCredential.user);
-          // Redirect to your app's home screen or dashboard after successful signup
-        })
-        .catch((error) => {
-          console.error('Signup error:', error);
-          setError(error.message);
-        });
-    } else {
-      // Login flow
-      signInWithEmailAndPassword(auth, username, password)
-        .then((userCredential) => {
-          console.log('Logged in with:', userCredential.user);
-          // Redirect to your app's home screen or dashboard after successful login
-        })
-        .catch((error) => {
-          console.error('Login error:', error);
-          setError(error.message);
-        });
+    signInWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        console.log('Logged in with:', userCredential.user);
+        router.replace('/(tabs)');  // Navigate to the tab layout
+      })
+      .catch((error) => {
+        console.error('Login error:', error);
+        setError(error.message);
+      });
+  };
+
+  const handleSignup = () => {
+    if (!auth) {
+      setError('Firebase authentication is not initialized.');
+      return;
     }
+
+    createUserWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        console.log('User signed up with:', userCredential.user);
+        router.replace('/(tabs)');  // Navigate to the tab layout
+      })
+      .catch((error) => {
+        console.error('Signup error:', error);
+        setError(error.message);
+      });
   };
 
   return (
     <Layout style={styles.container}>
       <Text category="h1" style={styles.title}>
-        {isSignUp ? 'Sign Up' : 'Welcome'}
+        Welcome
       </Text>
       <Text category="s1" appearance="hint" style={styles.subtitle}>
-        {isSignUp ? 'Please sign up to continue' : 'Please sign in to continue'}
+        {isSigningUp ? 'Create a new account' : 'Please sign in to continue'}
       </Text>
       {error ? (
         <Text status="danger" style={styles.errorText}>
@@ -58,8 +63,8 @@ export default function LoginScreen() {
       ) : null}
       <Input
         placeholder="Email"
-        value={username}
-        onChangeText={setUsername}
+        value={email}
+        onChangeText={setEmail}
         style={styles.input}
       />
       <Input
@@ -69,15 +74,21 @@ export default function LoginScreen() {
         onChangeText={setPassword}
         style={styles.input}
       />
-      <Button style={styles.button} onPress={handleLoginOrSignup}>
-        {isSignUp ? 'Sign Up' : 'Sign In'}
-      </Button>
+      {isSigningUp ? (
+        <Button style={styles.button} onPress={handleSignup}>
+          Sign Up
+        </Button>
+      ) : (
+        <Button style={styles.button} onPress={handleLogin}>
+          Sign In
+        </Button>
+      )}
       <Button
-        style={styles.switchModeButton}
+        style={styles.switchButton}
         appearance="ghost"
-        onPress={() => setIsSignUp(!isSignUp)}
+        onPress={() => setIsSigningUp(!isSigningUp)}
       >
-        {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+        {isSigningUp ? 'Already have an account? Sign In' : 'Don’t have an account? Sign Up'}
       </Button>
       <Button style={styles.themeToggle} appearance="ghost" onPress={toggleTheme}>
         {isDarkMode ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
@@ -111,8 +122,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     width: '100%',
   },
-  switchModeButton: {
-    marginTop: 24,
+  switchButton: {
+    marginTop: 16,
+    width: '100%',
   },
   themeToggle: {
     marginTop: 24,

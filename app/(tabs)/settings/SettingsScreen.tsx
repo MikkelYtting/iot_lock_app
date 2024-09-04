@@ -1,7 +1,9 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { Layout, Text, Button } from '@ui-kitten/components';
-import { useThemeToggle } from '../_layout';
+import { useThemeToggle } from '../../_layout';  // Adjust the relative path
+
+
 
 export default function SettingsScreen() {
   const { isDarkMode, toggleTheme } = useThemeToggle();
