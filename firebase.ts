@@ -28,9 +28,9 @@ const firebaseConfig = {
 console.log('Platform:', Platform.OS);
 console.log('Firebase Config:', firebaseConfig);
 
-let app: FirebaseApp | undefined;
-let auth: Auth | undefined;
-let firestore: Firestore | undefined;
+let app: FirebaseApp;
+let auth: Auth;
+let firestore: Firestore;
 let analytics: Analytics | undefined;
 
 try {
@@ -40,19 +40,18 @@ try {
   firestore = getFirestore(app);
   
   // Only initialize analytics if not running on the web platform and analytics is supported
-  if (Platform.OS !== 'web' && await isAnalyticsSupported()) {
-    analytics = getAnalytics(app);
-    console.log('Firebase Analytics initialized successfully');
-  } else {
-    console.log('Firebase Analytics not initialized (web platform or unsupported environment)');
-  }
+  isAnalyticsSupported().then((supported) => {
+    if (Platform.OS !== 'web' && supported) {
+      analytics = getAnalytics(app);
+      console.log('Firebase Analytics initialized successfully');
+    } else {
+      console.log('Firebase Analytics not initialized (web platform or unsupported environment)');
+    }
+  });
 
   console.log('Firebase initialized successfully');
 } catch (error) {
   console.error('Firebase initialization error:', error);
-  auth = undefined;
-  firestore = undefined;
-  analytics = undefined;
 }
 
 export { auth, firestore, analytics };

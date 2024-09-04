@@ -11,11 +11,11 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
+        headerShown: false,  // Hide the header globally for all tabs
       }}
     >
       <Tabs.Screen
-        name="home/HomeScreen"
+        name="home/HomeScreen"  // Ensure the name matches the file structure
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
@@ -24,7 +24,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings/SettingsScreen"
+        name="settings/SettingsScreen"  // Ensure the name matches the file structure
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, focused }) => (

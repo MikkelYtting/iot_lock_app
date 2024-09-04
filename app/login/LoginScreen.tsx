@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Layout, Text, Input, Button } from '@ui-kitten/components';
-import { auth } from '../../firebase';  // Update your firebase import
+import { auth } from '../../firebase';  // Ensure this points to your Firebase config
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'expo-router';
 import { useThemeToggle } from '../_layout';  // Assuming the theme toggle context is here
@@ -23,7 +23,8 @@ export default function LoginScreen() {
     signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         console.log('Logged in with:', userCredential.user);
-        router.replace('/(tabs)');  // Navigate to the tab layout
+        // Redirect to HomeScreen after login
+        router.replace('/(tabs)/home/HomeScreen');  // Ensure correct route to the home screen
       })
       .catch((error) => {
         console.error('Login error:', error);
@@ -40,7 +41,8 @@ export default function LoginScreen() {
     createUserWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         console.log('User signed up with:', userCredential.user);
-        router.replace('/(tabs)');  // Navigate to the tab layout
+        // Redirect to HomeScreen after signup
+        router.replace('/(tabs)/home/HomeScreen');
       })
       .catch((error) => {
         console.error('Signup error:', error);

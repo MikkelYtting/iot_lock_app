@@ -1,16 +1,43 @@
-import React from 'react';
-import { View, Text } from 'react-native';  // Import View and Text from react-native
+import React, { useEffect, useState } from 'react';
+import { View, Text } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '../firebase';  // Ensure this path points to your firebase config
+import { auth } from '../firebase';  // Import only auth from your firebase config
+import { signOut } from 'firebase/auth';  // Import signOut directly from the official Firebase Auth SDK
 import LoadingScreen from '../components/LoadingScreen';  // Import your LoadingScreen component
 
 export default function InitialRouting() {
-  // Use Firebase authentication state to know if a user is logged in
-  const [user, loading, error] = useAuthState(auth!);  // Use `!` to assure TypeScript that `auth` won't be undefined
+  const [firebaseInitialized, setFirebaseInitialized] = useState(false);
+  const [forceLogoutComplete, setForceLogoutComplete] = useState(false); // Track if sign out is complete
+  const [user, loading, error] = useAuthState(auth);
 
-  // If still loading Firebase authentication, show the loading screen
-  if (loading) {
+  // Ensure Firebase is initialized before proceeding
+  useEffect(() => {
+    if (auth) {
+      setFirebaseInitialized(true);  // Set to true once auth is defined
+    }
+  }, [auth]);
+
+  // Force logout when the app starts, in development mode
+  useEffect(() => {
+    if (__DEV__) {  // Only force log out in development mode
+      signOut(auth)
+        .then(() => {
+          console.log('Forced sign out on app start');
+          setForceLogoutComplete(true); // Set to true after sign out completes
+        })
+        .catch((error: any) => {  // Explicitly specify the type of error
+          console.error('Error during forced sign out:', error);
+          setForceLogoutComplete(true); // Still proceed even if there's an error
+        });
+    } else {
+      setForceLogoutComplete(true);  // Skip sign out in production mode
+    }
+  }, []);
+
+  // Show loading while Firebase is initializing or if the forced logout is still in progress
+  if (!firebaseInitialized || !forceLogoutComplete || loading) {
+    console.log('Initializing Firebase or waiting for sign out...');
     return <LoadingScreen />;
   }
 
