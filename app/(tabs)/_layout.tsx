@@ -2,20 +2,22 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
-import { Colors } from '@/constants/Colors';
+import { useTheme } from '@ui-kitten/components'; // Added useTheme
 
 export default function TabLayout() {
+  const theme = useTheme(); // Access the current theme
   const colorScheme = useColorScheme();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,  // Hide the header globally for all tabs
+        tabBarActiveTintColor: theme['color-primary-500'], // Red for active tab
+        tabBarInactiveTintColor: theme['text-basic-color'], // Contrast color for inactive tab (e.g., white or black)
+        headerShown: false, // Hide the header globally for all tabs
       }}
     >
       <Tabs.Screen
-        name="home/HomeScreen"  // Ensure the name matches the file structure
+        name="home/HomeScreen"
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
@@ -24,7 +26,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings/SettingsScreen"  // Ensure the name matches the file structure
+        name="settings/SettingsScreen"
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, focused }) => (

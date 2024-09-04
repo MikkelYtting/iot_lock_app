@@ -28,7 +28,7 @@ export const useThemeToggle = () => useContext(ThemeToggleContext);
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [isDarkMode, setIsDarkMode] = useState(false); // State for dark mode
+  const [isDarkMode, setIsDarkMode] = useState(true); // State for dark mode
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'), // Load custom fonts
   });

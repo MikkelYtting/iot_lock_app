@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { StyleSheet } from 'react-native';
-import { Layout, Text, Input, Button } from '@ui-kitten/components';
+import { Layout, Text, Input, Button, useTheme } from '@ui-kitten/components'; // Added useTheme
 import { auth } from '../../firebase';  // Ensure this points to your Firebase config
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'expo-router';
 import { useThemeToggle } from '../_layout';  // Assuming the theme toggle context is here
 
 export default function LoginScreen() {
+  const theme = useTheme(); // Access the theme
   const { isDarkMode, toggleTheme } = useThemeToggle();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +24,6 @@ export default function LoginScreen() {
     signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         console.log('Logged in with:', userCredential.user);
-        // Redirect to HomeScreen after login
         router.replace('/(tabs)/home/HomeScreen');  // Ensure correct route to the home screen
       })
       .catch((error) => {
@@ -41,7 +41,6 @@ export default function LoginScreen() {
     createUserWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         console.log('User signed up with:', userCredential.user);
-        // Redirect to HomeScreen after signup
         router.replace('/(tabs)/home/HomeScreen');
       })
       .catch((error) => {
@@ -52,7 +51,7 @@ export default function LoginScreen() {
 
   return (
     <Layout style={styles.container}>
-      <Text category="h1" style={styles.title}>
+      <Text category="h1" style={[styles.title, { color: theme['color-primary-500'] }]}>
         Welcome
       </Text>
       <Text category="s1" appearance="hint" style={styles.subtitle}>
@@ -68,6 +67,7 @@ export default function LoginScreen() {
         value={email}
         onChangeText={setEmail}
         style={styles.input}
+        placeholderTextColor={theme['color-primary-300']} // Light red placeholder
       />
       <Input
         placeholder="Password"
@@ -75,13 +75,14 @@ export default function LoginScreen() {
         secureTextEntry
         onChangeText={setPassword}
         style={styles.input}
+        placeholderTextColor={theme['color-primary-300']}
       />
       {isSigningUp ? (
-        <Button style={styles.button} onPress={handleSignup}>
+        <Button style={styles.button} status="primary" onPress={handleSignup}>
           Sign Up
         </Button>
       ) : (
-        <Button style={styles.button} onPress={handleLogin}>
+        <Button style={styles.button} status="primary" onPress={handleLogin}>
           Sign In
         </Button>
       )}
