@@ -4,7 +4,7 @@ import {
   ThemeProvider,
 } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Slot } from 'expo-router'; // Slot is used for nested routing in Expo Router
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, createContext, useContext } from 'react';
 import 'react-native-reanimated';
@@ -14,6 +14,7 @@ import { EvaIconsPack } from '@ui-kitten/eva-icons'; // Import Eva Icons
 
 import { customLightTheme } from '../themes/lightTheme';
 import { customDarkTheme } from '../themes/darkTheme';
+import AuthGuard from '../components/AuthGuard'; // Import your AuthGuard component
 
 // Context for theme toggle
 const ThemeToggleContext = createContext({
@@ -59,20 +60,10 @@ export default function RootLayout() {
         <ApplicationProvider {...eva} theme={theme}>
           <ThemeProvider value={navigationTheme}>
             <Layout style={{ flex: 1, backgroundColor: theme['background-basic-color-1'] }}>
-              <Stack>
-                {/* Ensure login screen is registered correctly */}
-                <Stack.Screen
-                  name="login/LoginScreen" // Adjust path for your login screen
-                  options={{ headerShown: false }} // Hide the header on login screen
-                />
-                {/* Tab layout for authenticated users */}
-                <Stack.Screen
-                  name="(tabs)" // Ensure this corresponds to your tab layout
-                  options={{ headerShown: false }}
-                />
-                {/* Handle not-found screen */}
-                <Stack.Screen name="+not-found" />
-              </Stack>
+              {/* Wrap the children inside AuthGuard */}
+              <AuthGuard>
+                <Slot /> {/* This is where all your child routes will be rendered */}
+              </AuthGuard>
             </Layout>
           </ThemeProvider>
         </ApplicationProvider>
