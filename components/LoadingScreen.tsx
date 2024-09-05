@@ -1,26 +1,12 @@
-import React, { useRef, useEffect } from 'react';
-import { View, Animated, Easing, StyleSheet } from 'react-native';
-import { Icon, IconProps } from '@ui-kitten/components';  // Import IconProps
-
-// Custom Eye Icon component
-const EyeIcon = (props: IconProps) => (  // Explicitly type props as IconProps
-  <Icon
-    {...props}
-    name="eye"
-    pack="eva"
-    style={{
-      width: 80,
-      height: 80,
-      tintColor: 'red', // Red tint for the main part of the eye
-    }}
-  />
-);
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Animated, Easing } from 'react-native';
+import { Icon } from '@ui-kitten/components'; // Import the Icon component
 
 export default function LoadingScreen() {
   const spinValue = useRef(new Animated.Value(0)).current;
 
-  // Setup animation for continuous rotation
   useEffect(() => {
+    // Spin animation setup
     Animated.loop(
       Animated.timing(spinValue, {
         toValue: 1,
@@ -39,9 +25,17 @@ export default function LoadingScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Eye Icon with spinning animation */}
+      {/* Rotating eye icon */}
       <Animated.View style={{ transform: [{ rotate: spin }] }}>
-        <EyeIcon />
+        <Icon
+          name="eye"
+          pack="eva"
+          style={{
+            width: 80,
+            height: 80,
+            tintColor: 'red',
+          }}
+        />
       </Animated.View>
     </View>
   );

@@ -4,13 +4,12 @@
     "slug": "arguslocks",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon.png", 
     "scheme": "arguslocks",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/images/splash.png",
+    "splash": { 
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"  
     },
     "ios": {
       "supportsTablet": true,
@@ -19,8 +18,7 @@
     "android": {
       "package": "com.arguslocks.iotlock",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       }
     },
     "web": {
@@ -30,7 +28,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      "expo-splash-screen"  
     ],
     "experiments": {
       "typedRoutes": true

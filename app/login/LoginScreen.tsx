@@ -1,10 +1,40 @@
 import React, { useState } from 'react';
-import { StyleSheet } from 'react-native';
-import { Layout, Text, Input, Button, useTheme } from '@ui-kitten/components'; // Added useTheme
-import { auth } from '../../firebase';  // Ensure this points to your Firebase config
+import { View } from 'react-native';
+import { Layout, Text, Input, Button, useTheme } from '@ui-kitten/components';
+import { auth } from '../../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'expo-router';
-import { useThemeToggle } from '../_layout';  // Assuming the theme toggle context is here
+import { useThemeToggle } from '../_layout';
+import { loginStyles as styles } from '../../Styles/GlobalStyles'; // Import the styles
+
+// Helper function to validate email format
+const validateEmail = (email: string) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// Helper function to map Firebase errors to user-friendly messages
+const getErrorMessage = (errorCode: string): string => {
+  const errorMessages: { [key: string]: string } = {
+    'auth/invalid-email': 'Invalid email address format.',
+    'auth/user-disabled': 'Your account has been disabled. Please contact support.',
+    'auth/user-not-found': 'No account found with this email.',
+    'auth/wrong-password': 'Incorrect password. Please try again.',
+    'auth/email-already-in-use': 'This email is already in use. Try logging in or use a different email.',
+    'auth/weak-password': 'The password is too weak. Please use a stronger password.',
+    'auth/too-many-requests': 'Too many attempts. Please try again later.',
+  };
+
+  return errorMessages[errorCode] || 'Something went wrong. Please try again.';
+};
+
+// Helper function to check password strength
+const validatePassword = (password: string) => {
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  return { hasMinLength, hasUppercase, hasNumber };
+};
 
 export default function LoginScreen() {
   const theme = useTheme(); // Access the theme
@@ -14,6 +44,22 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
   const router = useRouter();
+  const [hasTypedPassword, setHasTypedPassword] = useState(false); // Track if user has started typing
+
+  // Real-time password feedback
+  const passwordStrength = validatePassword(password);
+
+  const validateForm = () => {
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address.');
+      return false;
+    }
+    if (isSigningUp && (!passwordStrength.hasMinLength || !passwordStrength.hasUppercase || !passwordStrength.hasNumber)) {
+      setError('Password does not meet the required criteria.');
+      return false;
+    }
+    return true;
+  };
 
   const handleLogin = () => {
     if (!auth) {
@@ -21,20 +67,28 @@ export default function LoginScreen() {
       return;
     }
 
+    if (!validateForm()) {
+      return;
+    }
+
     signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         console.log('Logged in with:', userCredential.user);
-        router.replace('/(tabs)/home/HomeScreen');  // Ensure correct route to the home screen
+        router.replace('/(tabs)/home/HomeScreen');
       })
       .catch((error) => {
         console.error('Login error:', error);
-        setError(error.message);
+        setError(getErrorMessage(error.code));
       });
   };
 
   const handleSignup = () => {
     if (!auth) {
       setError('Firebase authentication is not initialized.');
+      return;
+    }
+
+    if (!validateForm()) {
       return;
     }
 
@@ -45,7 +99,7 @@ export default function LoginScreen() {
       })
       .catch((error) => {
         console.error('Signup error:', error);
-        setError(error.message);
+        setError(getErrorMessage(error.code));
       });
   };
 
@@ -57,11 +111,11 @@ export default function LoginScreen() {
       <Text category="s1" appearance="hint" style={styles.subtitle}>
         {isSigningUp ? 'Create a new account' : 'Please sign in to continue'}
       </Text>
-      {error ? (
+      {error && (
         <Text status="danger" style={styles.errorText}>
           {error}
         </Text>
-      ) : null}
+      )}
       <Input
         placeholder="Email"
         value={email}
@@ -73,10 +127,32 @@ export default function LoginScreen() {
         placeholder="Password"
         value={password}
         secureTextEntry
-        onChangeText={setPassword}
+        onChangeText={(text) => {
+          setPassword(text);
+          if (text.length > 0) {
+            setHasTypedPassword(true); // Set true once the user starts typing
+          } else {
+            setHasTypedPassword(false); // Reset if the field is cleared
+          }
+        }}
         style={styles.input}
         placeholderTextColor={theme['color-primary-300']}
       />
+
+      {isSigningUp && hasTypedPassword && (
+        <View style={styles.passwordCriteria}>
+          <Text style={[passwordStrength.hasMinLength ? styles.valid : styles.invalid]}>
+            {passwordStrength.hasMinLength ? '✔' : '✘'} At least 8 characters
+          </Text>
+          <Text style={[passwordStrength.hasUppercase ? styles.valid : styles.invalid]}>
+            {passwordStrength.hasUppercase ? '✔' : '✘'} At least one uppercase letter
+          </Text>
+          <Text style={[passwordStrength.hasNumber ? styles.valid : styles.invalid]}>
+            {passwordStrength.hasNumber ? '✔' : '✘'} At least one number
+          </Text>
+        </View>
+      )}
+
       {isSigningUp ? (
         <Button style={styles.button} status="primary" onPress={handleSignup}>
           Sign Up
@@ -99,37 +175,3 @@ export default function LoginScreen() {
     </Layout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  title: {
-    marginBottom: 8,
-  },
-  subtitle: {
-    marginBottom: 32,
-  },
-  errorText: {
-    color: 'red',
-    marginBottom: 16,
-  },
-  input: {
-    marginBottom: 16,
-    width: '100%',
-  },
-  button: {
-    marginTop: 16,
-    width: '100%',
-  },
-  switchButton: {
-    marginTop: 16,
-    width: '100%',
-  },
-  themeToggle: {
-    marginTop: 24,
-  },
-});
