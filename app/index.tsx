@@ -1,47 +1,72 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '../firebase';  // Import only auth from your firebase config
-import { signOut } from 'firebase/auth';  // Import signOut directly from the official Firebase Auth SDK
-import LoadingScreen from '../components/LoadingScreen';  // Import your LoadingScreen component
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function InitialRouting() {
+export default function AuthLoadingScreen() {
   const [firebaseInitialized, setFirebaseInitialized] = useState(false);
-  const [forceLogoutComplete, setForceLogoutComplete] = useState(false); // Track if sign out is complete
+  const [forceLogoutComplete, setForceLogoutComplete] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false); // Track session check
   const [user, loading, error] = useAuthState(auth);
 
   // Ensure Firebase is initialized before proceeding
   useEffect(() => {
     if (auth) {
-      setFirebaseInitialized(true);  // Set to true once auth is defined
+      setFirebaseInitialized(true);
     }
   }, [auth]);
 
-  // Force logout when the app starts, in development mode
+  // Force logout when the app starts in development mode
   useEffect(() => {
-    if (__DEV__) {  // Only force log out in development mode
+    if (__DEV__) {
       signOut(auth)
         .then(() => {
           console.log('Forced sign out on app start');
-          setForceLogoutComplete(true); // Set to true after sign out completes
+          setForceLogoutComplete(true);
         })
-        .catch((error: any) => {  // Explicitly specify the type of error
+        .catch((error: any) => {
           console.error('Error during forced sign out:', error);
-          setForceLogoutComplete(true); // Still proceed even if there's an error
+          setForceLogoutComplete(true);
         });
     } else {
-      setForceLogoutComplete(true);  // Skip sign out in production mode
+      setForceLogoutComplete(true);
     }
   }, []);
 
-  // Show loading while Firebase is initializing or if the forced logout is still in progress
-  if (!firebaseInitialized || !forceLogoutComplete || loading) {
-    console.log('Initializing Firebase or waiting for sign out...');
-    return <LoadingScreen />;
+  // Load the stored session (if any) from AsyncStorage
+  useEffect(() => {
+    const loadUserSession = async () => {
+      try {
+        const storedUser = await AsyncStorage.getItem('rememberedUser');
+        if (storedUser && !user) {
+          // Simulate signing in user if session is found
+          console.log('User session found in storage, redirecting to home screen...');
+          setSessionChecked(true);
+        } else {
+          setSessionChecked(true);
+        }
+      } catch (error) {
+        console.error('Error loading user session:', error);
+        setSessionChecked(true);
+      }
+    };
+
+    loadUserSession();
+  }, [user]);
+
+  // Show loading while Firebase is initializing, forced logout is in progress, or session is being checked
+  if (!firebaseInitialized || !forceLogoutComplete || !sessionChecked || loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
   }
 
-  // If there's an error with Firebase authentication, log it and handle it
+  // Handle authentication errors
   if (error) {
     console.error('Firebase Auth Error:', error);
     return (
@@ -53,11 +78,9 @@ export default function InitialRouting() {
 
   // If the user is not authenticated, redirect to the login screen
   if (!user) {
-    console.log('User is not authenticated, redirecting to login screen...');
     return <Redirect href="/login/LoginScreen" />;
   }
 
   // If the user is authenticated, redirect to the home screen
-  console.log('User is authenticated, redirecting to home screen...');
   return <Redirect href="/(tabs)/home/HomeScreen" />;
 }

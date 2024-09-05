@@ -39,7 +39,7 @@ try {
   auth = getAuth(app);
   firestore = getFirestore(app);
   
-  // Only initialize analytics if not running on the web platform and analytics is supported
+  // Only initialize analytics if supported and not on the web platform
   isAnalyticsSupported().then((supported) => {
     if (Platform.OS !== 'web' && supported) {
       analytics = getAnalytics(app);

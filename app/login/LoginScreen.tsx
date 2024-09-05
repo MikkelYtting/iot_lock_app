@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { View } from 'react-native';
-import { Layout, Text, Input, Button, useTheme } from '@ui-kitten/components';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, TouchableWithoutFeedback } from 'react-native';
+import { Layout, Text, Input, Button, CheckBox, Icon, useTheme, IconProps } from '@ui-kitten/components';
 import { auth } from '../../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
 import { useRouter } from 'expo-router';
 import { useThemeToggle } from '../_layout';
-import { loginStyles as styles } from '../../Styles/GlobalStyles'; // Import the styles
+import { FirebaseError } from 'firebase/app'; // Import FirebaseError from Firebase
 
 // Helper function to validate email format
 const validateEmail = (email: string) => {
@@ -41,10 +42,33 @@ export default function LoginScreen() {
   const { isDarkMode, toggleTheme } = useThemeToggle();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false); // Track remember me status
   const [error, setError] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false); // State for password visibility
   const router = useRouter();
   const [hasTypedPassword, setHasTypedPassword] = useState(false); // Track if user has started typing
+
+  // Pre-fill email and password in development mode
+  useEffect(() => {
+    if (__DEV__) {
+      setEmail('Mytting1994@gmail.com');
+      setPassword('123456');
+    }
+  }, []);
+
+  useEffect(() => {
+    const loadRememberedUser = async () => {
+      const savedUser = await AsyncStorage.getItem('rememberedUser');
+      if (savedUser) {
+        const { email, password } = JSON.parse(savedUser);
+        setEmail(email);
+        setPassword(password);
+        setRememberMe(true); // Set remember me to true if user data exists
+      }
+    };
+    loadRememberedUser();
+  }, []);
 
   // Real-time password feedback
   const passwordStrength = validatePassword(password);
@@ -61,7 +85,7 @@ export default function LoginScreen() {
     return true;
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!auth) {
       setError('Firebase authentication is not initialized.');
       return;
@@ -71,18 +95,29 @@ export default function LoginScreen() {
       return;
     }
 
-    signInWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        console.log('Logged in with:', userCredential.user);
-        router.replace('/(tabs)/home/HomeScreen');
-      })
-      .catch((error) => {
-        console.error('Login error:', error);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+      // If "Remember Me" is checked, save credentials locally
+      if (rememberMe) {
+        await AsyncStorage.setItem('rememberedUser', JSON.stringify({ email, password }));
+      } else {
+        await AsyncStorage.removeItem('rememberedUser'); // Clear if unchecked
+      }
+
+      router.replace('/(tabs)/home/HomeScreen');
+    } catch (error) {
+      if (error instanceof FirebaseError) {
+        console.error('Login error:', error.message);
         setError(getErrorMessage(error.code));
-      });
+      } else {
+        console.error('Unknown login error:', error);
+        setError('An unknown error occurred.');
+      }
+    }
   };
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!auth) {
       setError('Firebase authentication is not initialized.');
       return;
@@ -92,16 +127,26 @@ export default function LoginScreen() {
       return;
     }
 
-    createUserWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        console.log('User signed up with:', userCredential.user);
-        router.replace('/(tabs)/home/HomeScreen');
-      })
-      .catch((error) => {
-        console.error('Signup error:', error);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      router.replace('/(tabs)/home/HomeScreen');
+    } catch (error) {
+      if (error instanceof FirebaseError) {
+        console.error('Signup error:', error.message);
         setError(getErrorMessage(error.code));
-      });
+      } else {
+        console.error('Unknown signup error:', error);
+        setError('An unknown error occurred.');
+      }
+    }
   };
+
+  // Render password visibility toggle icon
+  const renderPasswordIcon = (props: IconProps) => (
+    <TouchableWithoutFeedback onPress={() => setPasswordVisible(!passwordVisible)}>
+      <Icon {...props} name={passwordVisible ? 'eye' : 'eye-off'} />
+    </TouchableWithoutFeedback>
+  );
 
   return (
     <Layout style={styles.container}>
@@ -126,7 +171,8 @@ export default function LoginScreen() {
       <Input
         placeholder="Password"
         value={password}
-        secureTextEntry
+        secureTextEntry={!passwordVisible} // Toggle visibility
+        accessoryRight={renderPasswordIcon} // Show eye icon
         onChangeText={(text) => {
           setPassword(text);
           if (text.length > 0) {
@@ -138,6 +184,15 @@ export default function LoginScreen() {
         style={styles.input}
         placeholderTextColor={theme['color-primary-300']}
       />
+
+      {/* Remember Me Checkbox */}
+      <CheckBox
+        checked={rememberMe}
+        onChange={(checked) => setRememberMe(checked)}
+        style={styles.checkbox} // Add the missing checkbox style
+      >
+        Remember Me
+      </CheckBox>
 
       {isSigningUp && hasTypedPassword && (
         <View style={styles.passwordCriteria}>
@@ -175,3 +230,47 @@ export default function LoginScreen() {
     </Layout>
   );
 }
+
+// Local styles defined with StyleSheet
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  title: {
+    marginBottom: 20,
+  },
+  subtitle: {
+    marginBottom: 20,
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 20,
+  },
+  input: {
+    marginBottom: 20,
+  },
+  checkbox: {
+    marginTop: 20,
+  },
+  passwordCriteria: {
+    marginTop: 20,
+  },
+  valid: {
+    color: 'green',
+  },
+  invalid: {
+    color: 'red',
+  },
+  button: {
+    marginTop: 20,
+  },
+  switchButton: {
+    marginTop: 20,
+  },
+  themeToggle: {
+    marginTop: 20,
+  },
+});
