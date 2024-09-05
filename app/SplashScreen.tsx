@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Text, StyleSheet, Animated, Easing } from 'react-native';
+import { Text, StyleSheet, Animated, Easing, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient'; // Use expo-linear-gradient
 import { useRouter } from 'expo-router';
 import { customDarkTheme as theme } from '../themes/darkTheme';
 import { FontAwesome } from '@expo/vector-icons'; // Import FontAwesome for cogwheel icon
+
+const { width } = Dimensions.get('window'); // Get screen dimensions
 
 export default function SplashScreen() {
   const [isReady, setIsReady] = useState(false);
@@ -51,7 +53,7 @@ export default function SplashScreen() {
     >
       {/* Animated spinning cogwheel */}
       <Animated.View style={{ transform: [{ rotate: spin }] }}>
-        <FontAwesome name="cog" size={80} color="grey" style={styles.icon} /> 
+        <FontAwesome name="cog" size={0.2 * width} color="grey" style={styles.icon} /> 
       </Animated.View>
 
       <Text style={styles.logo}>ArgusLocks</Text>
@@ -66,12 +68,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    fontSize: 48,
+    fontSize: 0.12 * width, // Dynamic font size for logo (12% of screen width)
     fontWeight: 'bold',
-    color: theme['text-basic-color'], // White text for the logo
-    marginTop: 20, // Add space between the cogwheel and the text
+    color: theme['text-basic-color'],
+    marginTop: 20,
   },
   icon: {
-    marginBottom: 20, // Space between the icon and the logo
+    marginBottom: 20,
   },
 });

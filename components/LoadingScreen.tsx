@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing } from 'react-native';
+import { View, StyleSheet, Animated, Easing, Dimensions } from 'react-native';
 import { Icon } from '@ui-kitten/components'; // Import the Icon component
+
+const { width } = Dimensions.get('window'); // Get screen dimensions
 
 export default function LoadingScreen() {
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -31,8 +33,8 @@ export default function LoadingScreen() {
           name="eye"
           pack="eva"
           style={{
-            width: 80,
-            height: 80,
+            width: 0.2 * width, // Dynamic icon size (20% of screen width)
+            height: 0.2 * width,
             tintColor: 'red',
           }}
         />

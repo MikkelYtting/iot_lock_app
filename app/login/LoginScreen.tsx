@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TouchableWithoutFeedback } from 'react-native';
+import { StyleSheet, View, TouchableWithoutFeedback, Dimensions } from 'react-native';
 import { Layout, Text, Input, Button, CheckBox, Icon, useTheme, IconProps } from '@ui-kitten/components';
 import { auth } from '../../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -7,6 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'; // Import 
 import { useRouter } from 'expo-router';
 import { useThemeToggle } from '../_layout';
 import { FirebaseError } from 'firebase/app'; // Import FirebaseError from Firebase
+
+const { width } = Dimensions.get('window'); // Get screen width
 
 // Helper function to validate email format
 const validateEmail = (email: string) => {
@@ -186,13 +188,15 @@ export default function LoginScreen() {
       />
 
       {/* Remember Me Checkbox */}
-      <CheckBox
-        checked={rememberMe}
-        onChange={(checked) => setRememberMe(checked)}
-        style={styles.checkbox} // Add the missing checkbox style
-      >
-        Remember Me
-      </CheckBox>
+      <View style={styles.rememberMeContainer}>
+        <CheckBox
+          checked={rememberMe}
+          onChange={(checked) => setRememberMe(checked)}
+          style={styles.checkbox}
+        >
+          Remember Me
+        </CheckBox>
+      </View>
 
       {isSigningUp && hasTypedPassword && (
         <View style={styles.passwordCriteria}>
@@ -237,26 +241,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 0.05 * width, // 5% padding based on screen width
   },
   title: {
-    marginBottom: 20,
+    marginBottom: 0.06 * width, // Reduced margin between title and subtitle
+    fontSize: 0.08 * width, // Dynamic font size for title
   },
   subtitle: {
-    marginBottom: 20,
+    marginBottom: 0.04 * width, // Adjusted margin between subtitle and inputs
+    fontSize: 0.045 * width,
   },
   errorText: {
     color: 'red',
-    marginBottom: 20,
+    marginBottom: 0.04 * width,
+    fontSize: 0.04 * width,
   },
   input: {
-    marginBottom: 20,
+    marginBottom: 0.02 * width, // Reduced space between email and password fields
+    width: '100%',
+    fontSize: 0.045 * width,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start', // Align checkbox to the left
   },
   checkbox: {
-    marginTop: 20,
+    marginTop: 0.02 * width,
   },
   passwordCriteria: {
-    marginTop: 20,
+    marginTop: 0.02 * width,
+    width: '100%',
   },
   valid: {
     color: 'green',
@@ -265,12 +279,14 @@ const styles = StyleSheet.create({
     color: 'red',
   },
   button: {
-    marginTop: 20,
+    marginTop: 0.04 * width,
+    width: '100%',
   },
   switchButton: {
-    marginTop: 20,
+    marginTop: 0.04 * width,
+    width: '100%',
   },
   themeToggle: {
-    marginTop: 20,
+    marginTop: 0.06 * width,
   },
 });

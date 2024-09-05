@@ -1,8 +1,10 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, Dimensions } from 'react-native';
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
 import { useTheme } from '@ui-kitten/components'; // Added useTheme
+
+const { width } = Dimensions.get('window'); // Get screen dimensions
 
 export default function TabLayout() {
   const theme = useTheme(); // Access the current theme
@@ -11,8 +13,9 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: theme['color-primary-500'], // Red for active tab
-        tabBarInactiveTintColor: theme['text-basic-color'], // Contrast color for inactive tab (e.g., white or black)
+        tabBarActiveTintColor: theme['color-primary-500'], // Active tab color
+        tabBarInactiveTintColor: theme['text-basic-color'], // Inactive tab color
+        tabBarLabelStyle: { fontSize: 0.04 * width }, // Responsive font size for tabs
         headerShown: false, // Hide the header globally for all tabs
       }}
     >
