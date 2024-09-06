@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, TouchableWithoutFeedback, Dimensions } from 'react-native';
-import { Layout, Text, Input, Button, CheckBox, Icon, useTheme, IconProps } from '@ui-kitten/components';
+import { Layout, Text, Input, Button, CheckBox, Icon, useTheme, IconProps } from '@ui-kitten/components'; // Import IconProps here
 import { auth } from '../../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useThemeToggle } from '../_layout';
-import { FirebaseError } from 'firebase/app'; // Import FirebaseError from Firebase
+import { FirebaseError } from 'firebase/app';
 
-const { width } = Dimensions.get('window'); // Get screen width
+const { width, height } = Dimensions.get('window');
 
 // Helper function to validate email format
 const validateEmail = (email: string) => {
@@ -40,18 +40,17 @@ const validatePassword = (password: string) => {
 };
 
 export default function LoginScreen() {
-  const theme = useTheme(); // Access the theme
+  const theme = useTheme();
   const { isDarkMode, toggleTheme } = useThemeToggle();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false); // Track remember me status
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
-  const [passwordVisible, setPasswordVisible] = useState(false); // State for password visibility
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const router = useRouter();
-  const [hasTypedPassword, setHasTypedPassword] = useState(false); // Track if user has started typing
+  const [hasTypedPassword, setHasTypedPassword] = useState(false);
 
-  // Pre-fill email and password in development mode
   useEffect(() => {
     if (__DEV__) {
       setEmail('Mytting1994@gmail.com');
@@ -66,13 +65,12 @@ export default function LoginScreen() {
         const { email, password } = JSON.parse(savedUser);
         setEmail(email);
         setPassword(password);
-        setRememberMe(true); // Set remember me to true if user data exists
+        setRememberMe(true);
       }
     };
     loadRememberedUser();
   }, []);
 
-  // Real-time password feedback
   const passwordStrength = validatePassword(password);
 
   const validateForm = () => {
@@ -100,11 +98,10 @@ export default function LoginScreen() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-      // If "Remember Me" is checked, save credentials locally
       if (rememberMe) {
         await AsyncStorage.setItem('rememberedUser', JSON.stringify({ email, password }));
       } else {
-        await AsyncStorage.removeItem('rememberedUser'); // Clear if unchecked
+        await AsyncStorage.removeItem('rememberedUser');
       }
 
       router.replace('/(tabs)/home/HomeScreen');
@@ -153,10 +150,10 @@ export default function LoginScreen() {
   return (
     <Layout style={styles.container}>
       <Text category="h1" style={[styles.title, { color: theme['color-primary-500'] }]}>
-        Welcome
+        LOGIN TO YOUR ACCOUNT
       </Text>
       <Text category="s1" appearance="hint" style={styles.subtitle}>
-        {isSigningUp ? 'Create a new account' : 'Please sign in to continue'}
+        Enter your login information
       </Text>
       {error && (
         <Text status="danger" style={styles.errorText}>
@@ -168,59 +165,40 @@ export default function LoginScreen() {
         value={email}
         onChangeText={setEmail}
         style={styles.input}
-        placeholderTextColor={theme['color-primary-300']} // Light red placeholder
+        placeholderTextColor={theme['color-primary-300']}
+        accessoryLeft={(props: IconProps) => <Icon {...props} name="email-outline" />}
       />
       <Input
         placeholder="Password"
         value={password}
-        secureTextEntry={!passwordVisible} // Toggle visibility
-        accessoryRight={renderPasswordIcon} // Show eye icon
+        secureTextEntry={!passwordVisible}
+        accessoryRight={renderPasswordIcon}
         onChangeText={(text) => {
           setPassword(text);
           if (text.length > 0) {
-            setHasTypedPassword(true); // Set true once the user starts typing
+            setHasTypedPassword(true);
           } else {
-            setHasTypedPassword(false); // Reset if the field is cleared
+            setHasTypedPassword(false);
           }
         }}
         style={styles.input}
         placeholderTextColor={theme['color-primary-300']}
+        accessoryLeft={(props: IconProps) => <Icon {...props} name="lock-outline" />} // Lock Icon
       />
 
-      {/* Remember Me Checkbox */}
       <View style={styles.rememberMeContainer}>
-        <CheckBox
-          checked={rememberMe}
-          onChange={(checked) => setRememberMe(checked)}
-          style={styles.checkbox}
-        >
-          Remember Me
-        </CheckBox>
+        <View style={styles.rememberMeRow}>
+          <CheckBox
+            checked={rememberMe}
+            onChange={(nextChecked) => setRememberMe(nextChecked)}
+          />
+          <Text style={styles.rememberMeText}>Remember me</Text>
+        </View>
+        <Text style={styles.forgotPassword} onPress={() => {}}>Forgot password</Text>
       </View>
 
-      {isSigningUp && hasTypedPassword && (
-        <View style={styles.passwordCriteria}>
-          <Text style={[passwordStrength.hasMinLength ? styles.valid : styles.invalid]}>
-            {passwordStrength.hasMinLength ? '✔' : '✘'} At least 8 characters
-          </Text>
-          <Text style={[passwordStrength.hasUppercase ? styles.valid : styles.invalid]}>
-            {passwordStrength.hasUppercase ? '✔' : '✘'} At least one uppercase letter
-          </Text>
-          <Text style={[passwordStrength.hasNumber ? styles.valid : styles.invalid]}>
-            {passwordStrength.hasNumber ? '✔' : '✘'} At least one number
-          </Text>
-        </View>
-      )}
+      <Button style={styles.loginButton} status="danger" onPress={handleLogin}>LOGIN</Button>
 
-      {isSigningUp ? (
-        <Button style={styles.button} status="primary" onPress={handleSignup}>
-          Sign Up
-        </Button>
-      ) : (
-        <Button style={styles.button} status="primary" onPress={handleLogin}>
-          Sign In
-        </Button>
-      )}
       <Button
         style={styles.switchButton}
         appearance="ghost"
@@ -240,53 +218,57 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 0.05 * width, // 5% padding based on screen width
+    paddingHorizontal: width * 0.05,
+    backgroundColor: 'black',
   },
   title: {
-    marginBottom: 0.06 * width, // Reduced margin between title and subtitle
-    fontSize: 0.08 * width, // Dynamic font size for title
+    textAlign: 'center',
+    marginBottom: height * 0.02,
+    fontSize: width * 0.07,
+    fontWeight: 'bold',
+    color: 'white',
   },
   subtitle: {
-    marginBottom: 0.04 * width, // Adjusted margin between subtitle and inputs
-    fontSize: 0.045 * width,
+    textAlign: 'center',
+    marginBottom: height * 0.02,
+    color: 'grey',
   },
   errorText: {
     color: 'red',
-    marginBottom: 0.04 * width,
-    fontSize: 0.04 * width,
+    marginBottom: height * 0.02,
+    textAlign: 'center',
   },
   input: {
-    marginBottom: 0.02 * width, // Reduced space between email and password fields
+    marginBottom: height * 0.015,
     width: '100%',
-    fontSize: 0.045 * width,
   },
   rememberMeContainer: {
     flexDirection: 'row',
-    alignSelf: 'flex-start', // Align checkbox to the left
-  },
-  checkbox: {
-    marginTop: 0.02 * width,
-  },
-  passwordCriteria: {
-    marginTop: 0.02 * width,
+    justifyContent: 'space-between',
     width: '100%',
+    marginBottom: height * 0.03,
   },
-  valid: {
-    color: 'green',
+  rememberMeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  invalid: {
-    color: 'red',
+  rememberMeText: {
+    marginLeft: 8, // Add some space between the checkbox and text
+    color: 'grey',
   },
-  button: {
-    marginTop: 0.04 * width,
-    width: '100%',
+  forgotPassword: {
+    color: 'grey',
+    textDecorationLine: 'underline',
+  },
+  loginButton: {
+    backgroundColor: '#FF0000',
+    borderColor: '#FF0000',
+    marginBottom: height * 0.04,
   },
   switchButton: {
-    marginTop: 0.04 * width,
-    width: '100%',
+    marginTop: height * 0.03,
   },
   themeToggle: {
-    marginTop: 0.06 * width,
+    marginTop: height * 0.03,
   },
 });
