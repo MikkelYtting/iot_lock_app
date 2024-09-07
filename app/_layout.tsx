@@ -30,7 +30,8 @@ SplashScreen.preventAutoHideAsync(); // Prevent auto-hide of the splash screen
 
 export default function RootLayout() {
   const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode initially
-  const [isSplashVisible, setIsSplashVisible] = useState(true);
+  const [isSplashVisible, setIsSplashVisible] = useState(true); // Controls splash visibility
+  const [isRootLayoutMounted, setIsRootLayoutMounted] = useState(false); // New: Track RootLayout mounting state
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
@@ -59,13 +60,13 @@ export default function RootLayout() {
 
         if (__DEV__) {
           // Simulate a splash screen delay for development purposes
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          await new Promise((resolve) => setTimeout(resolve, 1000)); // Reduce delay for better UX
         }
       } catch (e) {
         console.warn('Error loading theme preference:', e);
       } finally {
-        // Hide the splash screen after the app is ready
-        setIsSplashVisible(false);
+        setIsRootLayoutMounted(true); // New: Mark RootLayout as mounted
+        setIsSplashVisible(false); // Hide splash after preparation
         SplashScreen.hideAsync();
       }
     };
@@ -79,7 +80,7 @@ export default function RootLayout() {
   if (isSplashVisible) {
     return (
       <ApplicationProvider {...eva} theme={theme}>
-        <SplashScreenComponent />
+        <SplashScreenComponent isRootLayoutMounted={isRootLayoutMounted} />
       </ApplicationProvider>
     );
   }

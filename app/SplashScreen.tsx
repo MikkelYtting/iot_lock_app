@@ -1,94 +1,81 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Animated, Easing, Dimensions, ImageBackground, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { FontAwesome } from '@expo/vector-icons'; // For the animated icon
+import { Layout, Text } from '@ui-kitten/components'; // Use UI Kitten components for consistency
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window'); // Get screen dimensions
 
-export default function SplashScreen() {
-  const [isSplashVisible, setIsSplashVisible] = useState(true);
+export default function SplashScreen({ isRootLayoutMounted }: { isRootLayoutMounted: boolean }) {
+  const fadeAnim = useRef(new Animated.Value(1)).current; // Opacity animation value for fade out
+  const textFadeAnim = useRef(new Animated.Value(1)).current; // Separate animation for the text
   const router = useRouter();
-  const fadeAnimSplash = useRef(new Animated.Value(1)).current; // Splash opacity
-  const fadeAnimLogin = useRef(new Animated.Value(0)).current; // Login opacity
-  const spinValue = useRef(new Animated.Value(0)).current; // Animated value for spinning
+  const [animationFinished, setAnimationFinished] = useState(false); // Track animation state
 
   useEffect(() => {
-    // Start spin animation for cogwheel
-    Animated.loop(
-      Animated.timing(spinValue, {
-        toValue: 1,
-        duration: 2000, // Duration for one full spin (2 seconds)
-        easing: Easing.linear, // Add this line to make the spin smooth
-        useNativeDriver: true,
-      })
-    ).start();
-  }, [spinValue]);
-
-  // Interpolate the spin value for continuous spinning effect
-  const spin = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  useEffect(() => {
-    const startTransition = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 3000)); // Simulate loading delay
-
-      // Fade out splash screen and fade in login screen
-      Animated.sequence([
-        Animated.timing(fadeAnimSplash, {
+    if (isRootLayoutMounted) {
+      // Delay to ensure root layout has mounted
+      setTimeout(() => {
+        // Start text fade-out animation
+        Animated.timing(textFadeAnim, {
           toValue: 0,
-          duration: 1000, // Fade out splash screen
+          duration: 1500, // Fade out text over 1.5 seconds
           useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnimLogin, {
-          toValue: 1,
-          duration: 1000, // Fade in login screen
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setIsSplashVisible(false); // After animation, remove splash from view
-        router.replace('/login/LoginScreen'); // Navigate to the login screen after splash
-      });
-    };
+        }).start(() => {
+          // Start background fade-out animation after text has fully faded out
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 2000, // Fade out the entire screen over 2 seconds
+            useNativeDriver: true,
+          }).start(() => {
+            setAnimationFinished(true); // Mark animation as complete
+          });
+        });
+      }, 500); // Optional delay before starting the fade out
+    }
+  }, [isRootLayoutMounted, fadeAnim, textFadeAnim]);
 
-    startTransition();
-  }, [fadeAnimSplash, fadeAnimLogin]);
+  useEffect(() => {
+    if (animationFinished) {
+      // Wait for fade-out animation to complete before navigating
+      setTimeout(() => {
+        router.replace('/login/LoginScreen');
+      }, 200);
+    }
+  }, [animationFinished, router]);
 
   return (
-    <ImageBackground
-      source={require('../assets/images/SplashScreen.png')} // Update to the correct path of your image
-      style={styles.backgroundImage}
-      resizeMode="cover" // Ensure the image covers the screen proportionally
-    >
-      {isSplashVisible ? (
-        // Splash screen animation
-        <Animated.View style={[styles.splashContainer, { opacity: fadeAnimSplash }]}>
-          <Animated.View style={{ transform: [{ rotate: spin }] }}>
-            <FontAwesome name="cog" size={0.2 * width} color="grey" style={styles.icon} />
-          </Animated.View>
+    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+      <LinearGradient
+        colors={['rgba(178, 0, 0, 0.3)', 'black', 'rgba(178, 0, 0, 0.3)']} // Subtle red gradient
+        style={styles.background}
+      >
+        <Animated.View style={{ opacity: textFadeAnim }}>
+          <Text category="h1" style={styles.text}>
+            Argus Locks
+          </Text>
         </Animated.View>
-      ) : null}
-    </ImageBackground>
+      </LinearGradient>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundImage: {
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  background: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
     height: '100%',
   },
-  splashContainer: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    height: '100%',
-  },
-  icon: {
-    marginBottom: 20,
+  text: {
+    fontSize: width * 0.12,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
 });

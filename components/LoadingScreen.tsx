@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing, Dimensions } from 'react-native';
-import { Icon } from '@ui-kitten/components'; // Import the Icon component
+import { StyleSheet, View, Animated, Easing, Dimensions } from 'react-native';
+import { Icon, Layout } from '@ui-kitten/components'; // Use Layout from UI Kitten
+import { BlurView } from 'expo-blur'; // Use Expo Blur for the glass effect
 
 const { width } = Dimensions.get('window'); // Get screen dimensions
 
@@ -26,7 +27,10 @@ export default function LoadingScreen() {
   });
 
   return (
-    <View style={styles.container}>
+    <Layout style={styles.container}>
+      {/* Blur effect for the glass effect background */}
+      <BlurView intensity={200} tint="dark" style={StyleSheet.absoluteFill} />
+
       {/* Rotating eye icon */}
       <Animated.View style={{ transform: [{ rotate: spin }] }}>
         <Icon
@@ -35,11 +39,11 @@ export default function LoadingScreen() {
           style={{
             width: 0.2 * width, // Dynamic icon size (20% of screen width)
             height: 0.2 * width,
-            tintColor: 'red',
+            tintColor: 'red', // Customize the color of the loader
           }}
         />
       </Animated.View>
-    </View>
+    </Layout>
   );
 }
 
@@ -48,6 +52,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'black', // Set the background to black
+    backgroundColor: 'transparent', // Transparent background for the blur effect
   },
 });
