@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TouchableWithoutFeedback, Dimensions } from 'react-native';
-import { Layout, Text, Input, Button, CheckBox, Icon, useTheme, IconProps } from '@ui-kitten/components'; // Import IconProps here
+import { StyleSheet, View, TouchableWithoutFeedback, Dimensions, ImageBackground } from 'react-native';
+import { Layout, Text, Input, Button, CheckBox, Icon, useTheme, IconProps } from '@ui-kitten/components';
 import { auth } from '../../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -148,68 +148,77 @@ export default function LoginScreen() {
   );
 
   return (
-    <Layout style={styles.container}>
-      <Text category="h1" style={[styles.title, { color: theme['color-primary-500'] }]}>
-        LOGIN TO YOUR ACCOUNT
-      </Text>
-      <Text category="s1" appearance="hint" style={styles.subtitle}>
-        Enter your login information
-      </Text>
-      {error && (
-        <Text status="danger" style={styles.errorText}>
-          {error}
+    <ImageBackground source={require('../../assets/images/login_background.jpg')} style={styles.backgroundImage}>
+      <Layout style={styles.container}>
+        <Text category="h1" style={[styles.title, { color: theme['color-primary-500'] }]}>
+          LOGIN TO YOUR ACCOUNT
         </Text>
-      )}
-      <Input
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-        placeholderTextColor={theme['color-primary-300']}
-        accessoryLeft={(props: IconProps) => <Icon {...props} name="email-outline" />}
-      />
-      <Input
-        placeholder="Password"
-        value={password}
-        secureTextEntry={!passwordVisible}
-        accessoryRight={renderPasswordIcon}
-        onChangeText={(text) => {
-          setPassword(text);
-          if (text.length > 0) {
-            setHasTypedPassword(true);
-          } else {
-            setHasTypedPassword(false);
-          }
-        }}
-        style={styles.input}
-        placeholderTextColor={theme['color-primary-300']}
-        accessoryLeft={(props: IconProps) => <Icon {...props} name="lock-outline" />} // Lock Icon
-      />
+        <Text category="s1" appearance="hint" style={styles.subtitle}>
+          Enter your login information
+        </Text>
+        {error && (
+          <Text status="danger" style={styles.errorText}>
+            {error}
+          </Text>
+        )}
+        <Input
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          style={styles.input}
+          placeholderTextColor={theme['color-primary-300']}
+          accessoryLeft={(props: IconProps) => <Icon {...props} name="email-outline" />}
+        />
+        <Input
+          placeholder="Password"
+          value={password}
+          secureTextEntry={!passwordVisible}
+          accessoryRight={renderPasswordIcon}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (text.length > 0) {
+              setHasTypedPassword(true);
+            } else {
+              setHasTypedPassword(false);
+            }
+          }}
+          style={styles.input}
+          placeholderTextColor={theme['color-primary-300']}
+          accessoryLeft={(props: IconProps) => <Icon {...props} name="lock-outline" />}
+        />
 
-      <View style={styles.rememberMeContainer}>
-        <View style={styles.rememberMeRow}>
-          <CheckBox
-            checked={rememberMe}
-            onChange={(nextChecked) => setRememberMe(nextChecked)}
-          />
-          <Text style={styles.rememberMeText}>Remember me</Text>
+        <View style={styles.rememberMeContainer}>
+          <View style={styles.rememberMeRow}>
+            <CheckBox
+              checked={rememberMe}
+              onChange={(nextChecked) => setRememberMe(nextChecked)}
+            />
+            <Text style={styles.rememberMeText}>Remember me</Text>
+          </View>
+          <Text style={styles.forgotPassword} onPress={() => {}}>Forgot password</Text>
         </View>
-        <Text style={styles.forgotPassword} onPress={() => {}}>Forgot password</Text>
-      </View>
 
-      <Button style={styles.loginButton} status="danger" onPress={handleLogin}>LOGIN</Button>
+        <Button style={styles.loginButton} status="danger" onPress={handleLogin}>LOGIN</Button>
 
-      <Button
-        style={styles.switchButton}
-        appearance="ghost"
-        onPress={() => setIsSigningUp(!isSigningUp)}
-      >
-        {isSigningUp ? 'Already have an account? Sign In' : 'Don’t have an account? Sign Up'}
-      </Button>
-      <Button style={styles.themeToggle} appearance="ghost" onPress={toggleTheme}>
-        {isDarkMode ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-      </Button>
-    </Layout>
+        {/* Separator with Or */}
+        <View style={styles.separatorContainer}>
+          <View style={styles.line} />
+          <Text style={styles.orText}>Or</Text>
+          <View style={styles.line} />
+        </View>
+
+        <Button
+          style={styles.switchButton}
+          appearance="ghost"
+          onPress={() => setIsSigningUp(!isSigningUp)}
+        >
+          {isSigningUp ? 'Already have an account? Sign In' : 'Don’t have an account? Sign Up'}
+        </Button>
+        <Button style={styles.themeToggle} appearance="ghost" onPress={toggleTheme}>
+          {isDarkMode ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+        </Button>
+      </Layout>
+    </ImageBackground>
   );
 }
 
@@ -219,7 +228,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: width * 0.05,
-    backgroundColor: 'black',
+    backgroundColor: 'transparent', // Ensures content background is transparent
+  },
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   title: {
     textAlign: 'center',
@@ -253,7 +268,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rememberMeText: {
-    marginLeft: 8, // Add some space between the checkbox and text
+    marginLeft: 8,
     color: 'grey',
   },
   forgotPassword: {
@@ -264,6 +279,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF0000',
     borderColor: '#FF0000',
     marginBottom: height * 0.04,
+  },
+  separatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: height * 0.02,
+  },
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ccc',
+  },
+  orText: {
+    marginHorizontal: 10,
+    color: 'grey',
   },
   switchButton: {
     marginTop: height * 0.03,
