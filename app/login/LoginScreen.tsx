@@ -10,7 +10,6 @@ import { FirebaseError } from 'firebase/app';
 import { LinearGradient } from 'expo-linear-gradient'; // For gradient background
 import LoadingScreen from '../../components/LoadingScreen';
 
-
 const { width, height } = Dimensions.get('window');
 
 // Helper function to validate email format
@@ -50,6 +49,7 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [passwordValidation, setPasswordValidation] = useState({ hasMinLength: false, hasUppercase: false, hasNumber: false });
   const [loading, setLoading] = useState(false); // Track loading state
   const [showLoader, setShowLoader] = useState(false); // Loader that shows after 2 seconds delay
   const router = useRouter();
@@ -116,6 +116,12 @@ export default function LoginScreen() {
     return true;
   };
 
+  // Handle password change and update validation state
+  const handlePasswordChange = (text: string) => {
+    setPassword(text);
+    setPasswordValidation(validatePassword(text));
+  };
+
   const handleLogin = async () => {
     if (!auth) {
       setError('Firebase authentication is not initialized.');
@@ -180,6 +186,15 @@ export default function LoginScreen() {
     </TouchableWithoutFeedback>
   );
 
+  // Render checkmark or cross icon for password validation
+  const renderValidationIcon = (isValid: boolean) => (
+    <Icon
+      name={isValid ? 'checkmark-circle-2-outline' : 'close-circle-outline'}
+      fill={isValid ? 'green' : 'red'}
+      style={{ width: 20, height: 20, marginRight: 5 }}
+    />
+  );
+
   if (loading && showLoader) {
     return <LoadingScreen />; // Display the loading screen if the process takes more than 2 seconds
   }
@@ -206,14 +221,37 @@ export default function LoginScreen() {
             accessoryLeft={(props) => <Icon {...props} name="email-outline" />}
           />
           <Input
-  placeholder="Password"
-  value={password}
-  secureTextEntry={!passwordVisible}
-  accessoryRight={renderPasswordIcon}
-  onChangeText={setPassword}
-  style={styles.input}
-  accessoryLeft={(props) => <Icon {...props} name="lock-outline" />} // Lock icon added here
-/>
+            placeholder="Password"
+            value={password}
+            secureTextEntry={!passwordVisible}
+            accessoryRight={renderPasswordIcon}
+            onChangeText={handlePasswordChange} // Update password state and validation
+            style={styles.input}
+            accessoryLeft={(props) => <Icon {...props} name="lock-outline" />}
+          />
+          {/* Password validation criteria */}
+          {isSigningUp && (
+            <View style={styles.passwordValidation}>
+              <View style={styles.validationRow}>
+                {renderValidationIcon(passwordValidation.hasMinLength)}
+                <Text status={passwordValidation.hasMinLength ? 'success' : 'danger'}>
+                  At least 8 characters
+                </Text>
+              </View>
+              <View style={styles.validationRow}>
+                {renderValidationIcon(passwordValidation.hasUppercase)}
+                <Text status={passwordValidation.hasUppercase ? 'success' : 'danger'}>
+                  At least 1 uppercase letter
+                </Text>
+              </View>
+              <View style={styles.validationRow}>
+                {renderValidationIcon(passwordValidation.hasNumber)}
+                <Text status={passwordValidation.hasNumber ? 'success' : 'danger'}>
+                  At least 1 number
+                </Text>
+              </View>
+            </View>
+          )}
 
           <View style={styles.rememberMeContainer}>
             <CheckBox checked={rememberMe} onChange={(nextChecked) => setRememberMe(nextChecked)}>
@@ -318,5 +356,13 @@ const styles = StyleSheet.create({
     color: 'red',
     textAlign: 'center',
     marginBottom: 10,
+  },
+  passwordValidation: {
+    marginBottom: 20,
+  },
+  validationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
   },
 });
