@@ -29,7 +29,7 @@ export default function LoadingScreen() {
   return (
     <Layout style={styles.container}>
       {/* Blur effect for the glass effect background */}
-      <BlurView intensity={200} tint="dark" style={StyleSheet.absoluteFill} />
+      <BlurView intensity={800} tint="dark" style={StyleSheet.absoluteFill} />
 
       {/* Rotating eye icon */}
       <Animated.View style={{ transform: [{ rotate: spin }] }}>

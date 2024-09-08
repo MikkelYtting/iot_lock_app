@@ -186,7 +186,7 @@ export default function LoginScreen() {
 
   return (
     <LinearGradient
-      colors={['#B10000', 'black', '#B10000']} // Subtle gradient background
+      colors={['#0D0000', 'black', '#0D0000']} // Subtle gradient background
       style={styles.background}
     >
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
@@ -206,13 +206,15 @@ export default function LoginScreen() {
             accessoryLeft={(props) => <Icon {...props} name="email-outline" />}
           />
           <Input
-            placeholder="Password"
-            value={password}
-            secureTextEntry={!passwordVisible}
-            accessoryRight={renderPasswordIcon}
-            onChangeText={setPassword}
-            style={styles.input}
-          />
+  placeholder="Password"
+  value={password}
+  secureTextEntry={!passwordVisible}
+  accessoryRight={renderPasswordIcon}
+  onChangeText={setPassword}
+  style={styles.input}
+  accessoryLeft={(props) => <Icon {...props} name="lock-outline" />} // Lock icon added here
+/>
+
           <View style={styles.rememberMeContainer}>
             <CheckBox checked={rememberMe} onChange={(nextChecked) => setRememberMe(nextChecked)}>
               Remember Me

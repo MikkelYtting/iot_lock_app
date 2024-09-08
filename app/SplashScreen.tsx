@@ -47,7 +47,7 @@ export default function SplashScreen({ isRootLayoutMounted }: { isRootLayoutMoun
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <LinearGradient
-        colors={['rgba(178, 0, 0, 0.3)', 'black', 'rgba(178, 0, 0, 0.3)']} // Subtle red gradient
+        colors={['#0D0000', 'black', '#0D0000']} // Subtle gradient background
         style={styles.background}
       >
         <Animated.View style={{ opacity: textFadeAnim }}>
