@@ -1,5 +1,5 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
+import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getAnalytics, Analytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
 import Constants from 'expo-constants';
@@ -24,7 +24,6 @@ const firebaseConfig = {
   measurementId: Constants.manifest.extra.measurementId,
 };
 
-// Log the Firebase configuration to verify
 console.log('Platform:', Platform.OS);
 console.log('Firebase Config:', firebaseConfig);
 
@@ -38,14 +37,16 @@ try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   firestore = getFirestore(app);
-  
-  // Only initialize analytics if supported and not on the web platform
+
+  // Initialize GoogleAuthProvider
+  const googleAuthProvider = new GoogleAuthProvider();
+
   isAnalyticsSupported().then((supported) => {
     if (Platform.OS !== 'web' && supported) {
       analytics = getAnalytics(app);
       console.log('Firebase Analytics initialized successfully');
     } else {
-      console.log('Firebase Analytics not initialized (web platform or unsupported environment)');
+      console.log('Firebase Analytics not initialized');
     }
   });
 
@@ -54,4 +55,4 @@ try {
   console.error('Firebase initialization error:', error);
 }
 
-export { auth, firestore, analytics };
+export { auth, firestore, analytics, GoogleAuthProvider };
