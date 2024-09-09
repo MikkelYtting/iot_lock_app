@@ -1,23 +1,69 @@
+import LoadingScreen from '../../components/LoadingScreen';
+import FormValidation from '../../components/FormValidation';
+
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, TouchableWithoutFeedback, Dimensions, Animated } from 'react-native';
+import { StyleSheet, View, TouchableWithoutFeedback, Dimensions, Animated, Platform } from 'react-native';
 import { Layout, Text, Input, Button, CheckBox, Icon, useTheme, IconProps } from '@ui-kitten/components';
-import { auth } from '../../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, GoogleAuthProvider, googleClientId, firestore } from '../../firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithCredential } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useThemeToggle } from '../_layout';
 import { FirebaseError } from 'firebase/app';
 import { LinearGradient } from 'expo-linear-gradient';
-import LoadingScreen from '../../components/LoadingScreen';
-import FormValidation from '../../components/FormValidation';
+import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
+
+// Helper function to generate random data manually
+const getRandomName = () => {
+  const firstNames = ['John', 'Jane', 'Alice', 'Bob', 'Charlie'];
+  const lastNames = ['Doe', 'Smith', 'Brown', 'Johnson', 'Lee'];
+  const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+  const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+  return `${firstName} ${lastName}`;
+};
+
+const getRandomAddress = () => {
+  const streets = ['Main St', 'High St', 'Elm St', 'Maple Ave', 'Oak St'];
+  const streetNumber = Math.floor(Math.random() * 1000) + 1;
+  return `${streetNumber} ${streets[Math.floor(Math.random() * streets.length)]}`;
+};
+
+const getRandomDob = () => {
+  const year = Math.floor(Math.random() * 30) + 1970;  // Random year between 1970 and 2000
+  const month = Math.floor(Math.random() * 12) + 1;    // Random month between 1 and 12
+  const day = Math.floor(Math.random() * 28) + 1;      // Random day between 1 and 28
+  return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+};
+
+const getRandomPhone = () => {
+  const areaCode = Math.floor(Math.random() * 900) + 100;
+  const centralOfficeCode = Math.floor(Math.random() * 900) + 100;
+  const lineNumber = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `${areaCode}-${centralOfficeCode}-${lineNumber}`;
+};
+
+const getRandomPassword = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let password = '';
+  for (let i = 0; i < 8; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
 
 export default function LoginScreen() {
   const theme = useTheme();
   const { isDarkMode, toggleTheme } = useThemeToggle();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [dob, setDob] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
@@ -26,6 +72,14 @@ export default function LoginScreen() {
   const [showLoader, setShowLoader] = useState(false);
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Set up Google Sign-In with Firebase
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: googleClientId,  // Client ID from firebase.ts
+    redirectUri: makeRedirectUri({
+      scheme: Platform.OS === 'ios' ? 'arguslocks' : undefined,  // Use custom URI scheme for iOS, but not Android
+    }),
+  });
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -45,12 +99,37 @@ export default function LoginScreen() {
     };
 
     if (__DEV__) {
-      setEmail('Mytting1994@gmail.com');
-      setPassword('123456');
+      setEmail('test@example.com');
+      setPassword('password');
     }
 
     loadRememberedUser();
   }, [fadeAnim]);
+
+  // Handle Google Sign-In response and check for first-time sign-in
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+
+      const credential = GoogleAuthProvider.credential(id_token);
+      signInWithCredential(auth, credential)
+        .then(async (userCredential) => {
+          const user = userCredential.user;
+          const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+
+          if (userDoc.exists()) {
+            // User has completed setup before, redirect to home screen
+            router.replace('/(tabs)/home/HomeScreen');
+          } else {
+            // First time sign-up, redirect to UserSetupScreen to complete profile
+            router.replace('/UserSetupScreen');
+          }
+        })
+        .catch((error) => {
+          console.error('Google Sign-In error:', error);
+        });
+    }
+  }, [response]);
 
   const startLoadingWithDelay = () => {
     setLoading(true);
@@ -98,8 +177,45 @@ export default function LoginScreen() {
     const loaderTimeout = startLoadingWithDelay();
     try {
       await simulateDelay();
-      await createUserWithEmailAndPassword(auth, email, password);
+
+      // If in development mode, generate random name, address, and phone
+      if (__DEV__) {
+        setName(getRandomName());
+        setAddress(getRandomAddress());
+        setPhone(getRandomPhone());
+        setDob(getRandomDob());
+        setPassword(getRandomPassword());
+        console.log(`Generated random user: ${name}, ${address}, ${phone}, ${dob}`);
+      }
+
+      // Ensure the password meets certain criteria
+      if (password.length < 8 || !/\d/.test(password) || !/[a-zA-Z]/.test(password)) {
+        setError('Password must be at least 8 characters long and contain both letters and numbers.');
+        stopLoading(loaderTimeout);
+        return;
+      }
+
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Save additional user info to Firestore
+      await setDoc(doc(firestore, 'users', user.uid), {
+        name,
+        dob,
+        phone,
+        address,
+        email: user.email, // Save the user's email
+      });
+
+      // Redirect to home screen after saving the user info
       router.replace('/(tabs)/home/HomeScreen');
+
+      setEmail('');  // Reset form fields after sign-up
+      setPassword('');
+      setName('');
+      setDob('');
+      setPhone('');
+      setAddress('');
     } catch (error) {
       if (error instanceof FirebaseError) {
         setError(error.message);
@@ -117,6 +233,10 @@ export default function LoginScreen() {
     </TouchableWithoutFeedback>
   );
 
+  const renderIcon = (name: string) => (props: IconProps) => (
+    <Icon {...props} name={name} />
+  );
+
   if (loading && showLoader) {
     return <LoadingScreen />;
   }
@@ -126,18 +246,44 @@ export default function LoginScreen() {
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.transparentBox}>
           <Text category="h1" style={[styles.title, { color: theme['color-primary-500'] }]}>
-            LOGIN TO YOUR ACCOUNT
+            {isSigningUp ? 'CREATE YOUR ACCOUNT' : 'LOGIN TO YOUR ACCOUNT'}
           </Text>
           <Text category="s1" appearance="hint" style={styles.subtitle}>
-            Enter your login information
+            {isSigningUp ? 'Enter your details to create an account' : 'Enter your login information'}
           </Text>
           {error && <Text status="danger" style={styles.errorText}>{error}</Text>}
+          
+          {isSigningUp && (
+            <>
+              <Input
+                placeholder="Name"
+                value={name}
+                onChangeText={setName}
+                accessoryLeft={renderIcon('person-outline')}
+                style={styles.input}
+              />
+              <Input
+                placeholder="Date of Birth"
+                value={dob}
+                onChangeText={setDob}
+                accessoryLeft={renderIcon('calendar-outline')}
+                style={styles.input}
+              />
+              <Input
+                placeholder="Phone Number"
+                value={phone}
+                onChangeText={setPhone}
+                accessoryLeft={renderIcon('phone-outline')}
+                style={styles.input}
+              />
+            </>
+          )}
           <Input
             placeholder="Email"
             value={email}
             onChangeText={setEmail}
             style={styles.input}
-            accessoryLeft={(props) => <Icon {...props} name="email-outline" />}
+            accessoryLeft={renderIcon('email-outline')}
           />
           <Input
             placeholder="Password"
@@ -146,9 +292,8 @@ export default function LoginScreen() {
             accessoryRight={renderPasswordIcon}
             onChangeText={setPassword}
             style={styles.input}
-            accessoryLeft={(props) => <Icon {...props} name="lock-outline" />}
+            accessoryLeft={renderIcon('lock-outline')}
           />
-          {/* Form validation component */}
           <FormValidation email={email} password={password} isSigningUp={isSigningUp} />
 
           <View style={styles.rememberMeContainer}>
@@ -157,8 +302,13 @@ export default function LoginScreen() {
             </CheckBox>
             <Text style={styles.forgotPassword}>Forgot Password?</Text>
           </View>
-          <Button style={styles.loginButton} onPress={handleLogin}>
-            LOGIN
+
+          <Button style={styles.loginButton} onPress={isSigningUp ? handleSignup : handleLogin}>
+            {isSigningUp ? 'CREATE USER' : 'LOGIN WITH EMAIL'}
+          </Button>
+
+          <Button style={styles.googleButton} onPress={() => promptAsync()}>
+            {isSigningUp ? 'SIGN UP WITH GOOGLE' : 'LOGIN WITH GOOGLE'}
           </Button>
 
           <View style={styles.separatorContainer}>
@@ -226,6 +376,10 @@ const styles = StyleSheet.create({
   loginButton: {
     backgroundColor: '#FF0000',
     borderColor: '#FF0000',
+    marginBottom: 20,
+  },
+  googleButton: {
+    backgroundColor: '#4285F4',
     marginBottom: 20,
   },
   separatorContainer: {

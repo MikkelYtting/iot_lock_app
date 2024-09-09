@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "arguslocks",
+    "scheme": "arguslocks",  
     "userInterfaceStyle": "automatic",
     "splash": {
       "resizeMode": "contain",
@@ -13,12 +13,23 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.arguslocks.iotlock"
+      "bundleIdentifier": "com.arguslocks.iotlock",
+      "config": {
+        "googleSignIn": {
+          "reservedClientId": "YOUR_IOS_REVERSED_CLIENT_ID" 
+        }
+      }
     },
     "android": {
       "package": "com.arguslocks.iotlock",
       "adaptiveIcon": {
         "backgroundColor": "#000000"
+      },
+      "config": {
+        "googleSignIn": {
+          "apiKey": "YOUR_ANDROID_API_KEY",
+          "certificateHash": "YOUR_SHA1_CERTIFICATE" 
+        }
       }
     },
     "web": {
@@ -29,14 +40,7 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-splash-screen",
-      [
-        "react-native-auth0",
-        {
-          "domain": "dev-tstoloywl0tm35fs.eu.auth0.com",
-          "clientId": "HPAJWTyrMi4UxOE4isA0r6bGokTpfyeC"
-        }
-      ]
+      "expo-splash-screen"
     ],
     "experiments": {
       "typedRoutes": true

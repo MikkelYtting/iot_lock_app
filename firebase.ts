@@ -5,27 +5,46 @@ import { getAnalytics, Analytics, isSupported as isAnalyticsSupported } from 'fi
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+// Define the type for the 'extra' field in the manifest
+interface Extra {
+  iosApiKey: string;
+  androidApiKey: string;
+  webApiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  iosAppId: string;
+  androidAppId: string;
+  webAppId: string;
+  measurementId: string;
+}
+
+// Safely access the extra values by casting Constants.manifest.extra
+const manifest = Constants.manifest as { extra: Extra } | null;
+
+if (!manifest?.extra) {
+  throw new Error('Manifest or extra config is missing!');
+}
+
 // Firebase configuration setup
 const firebaseConfig = {
   apiKey: Platform.OS === 'ios'
-    ? Constants.manifest.extra.iosApiKey
+    ? manifest.extra.iosApiKey
     : Platform.OS === 'android'
-    ? Constants.manifest.extra.androidApiKey
-    : Constants.manifest.extra.webApiKey,
-  authDomain: Constants.manifest.extra.authDomain,
-  projectId: Constants.manifest.extra.projectId,
-  storageBucket: Constants.manifest.extra.storageBucket,
-  messagingSenderId: Constants.manifest.extra.messagingSenderId,
+    ? manifest.extra.androidApiKey
+    : manifest.extra.webApiKey,
+  authDomain: manifest.extra.authDomain,
+  projectId: manifest.extra.projectId,
+  storageBucket: manifest.extra.storageBucket,
+  messagingSenderId: manifest.extra.messagingSenderId,
   appId: Platform.OS === 'ios'
-    ? Constants.manifest.extra.iosAppId
+    ? manifest.extra.iosAppId
     : Platform.OS === 'android'
-    ? Constants.manifest.extra.androidAppId
-    : Constants.manifest.extra.webAppId,
-  measurementId: Constants.manifest.extra.measurementId,
+    ? manifest.extra.androidAppId
+    : manifest.extra.webAppId,
+  measurementId: manifest.extra.measurementId,
 };
-
-console.log('Platform:', Platform.OS);
-console.log('Firebase Config:', firebaseConfig);
 
 let app: FirebaseApp;
 let auth: Auth;
@@ -38,15 +57,13 @@ try {
   auth = getAuth(app);
   firestore = getFirestore(app);
 
-  // Initialize GoogleAuthProvider
-  const googleAuthProvider = new GoogleAuthProvider();
-
+  // Only initialize analytics if supported and not on the web platform
   isAnalyticsSupported().then((supported) => {
     if (Platform.OS !== 'web' && supported) {
       analytics = getAnalytics(app);
       console.log('Firebase Analytics initialized successfully');
     } else {
-      console.log('Firebase Analytics not initialized');
+      console.log('Firebase Analytics not initialized (web platform or unsupported environment)');
     }
   });
 
@@ -55,4 +72,11 @@ try {
   console.error('Firebase initialization error:', error);
 }
 
-export { auth, firestore, analytics, GoogleAuthProvider };
+// Google OAuth configuration
+const googleClientId = Platform.OS === 'ios'
+  ? '797072839515-aq6pdq0m0s7tkm3p9ilmivh06h12odvo.apps.googleusercontent.com'  // iOS Client ID
+  : Platform.OS === 'android'
+  ? '797072839515-egu7u3imnns8kdq7bdtv93fkntvgq41t.apps.googleusercontent.com'  // Android Client ID
+  : '797072839515-ro14b99rojjlha9jaq34un29ej0kia3s.apps.googleusercontent.com'; // Web Client ID
+
+export { auth, firestore, GoogleAuthProvider, googleClientId };

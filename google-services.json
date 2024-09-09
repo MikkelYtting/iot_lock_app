@@ -12,7 +12,12 @@
           "package_name": "com.arguslocks.iotlock"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "156687663202-9g5gc384r5papcnnjqv7qaef8kuq1vpb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAybXIZU4Oj7nHJeg7aO8wzlu-0r9jOSp0"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "156687663202-9g5gc384r5papcnnjqv7qaef8kuq1vpb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "156687663202-q89sii7djdm99e7usik0hvk26aj7te8t.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.arguslocks.iotlock"
+              }
+            }
+          ]
         }
       }
     }
