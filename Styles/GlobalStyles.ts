@@ -1,55 +1,85 @@
+// GlobalStyles.ts
 import { StyleSheet, Dimensions } from 'react-native';
 
-const { width } = Dimensions.get('window'); // Get screen dimensions
+const { width } = Dimensions.get('window');
 
-export const loginStyles = StyleSheet.create({
-  container: {
+const GlobalStyles = StyleSheet.create({
+  background: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 0.05 * width, // 5% padding from screen width
+  },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: width * 0.05,
+  },
+  transparentBox: {
+    width: '90%',
+    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   title: {
-    marginBottom: 0.02 * width, // Dynamic margin bottom
-    fontSize: 0.06 * width, // Dynamic title font size (6% of screen width)
+    textAlign: 'center',
+    fontSize: 24,
+    marginBottom: 20,
+    color: '#fff',
   },
   subtitle: {
-    marginBottom: 0.08 * width,
-    fontSize: 0.045 * width, // Dynamic subtitle font size
+    textAlign: 'center',
+    marginBottom: 20,
+    color: 'grey',
+  },
+  input: {
+    marginBottom: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  forgotPassword: {
+    color: '#fff',
+    textDecorationLine: 'underline',
+  },
+  loginButton: {
+    backgroundColor: '#FF0000',
+    borderColor: '#FF0000',
+    marginBottom: 20,
+  },
+  googleButton: {
+    backgroundColor: '#4285F4',
+    marginBottom: 20,
+  },
+  separatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ccc',
+  },
+  orText: {
+    marginHorizontal: 10,
+    color: 'grey',
+  },
+  switchButton: {
+    marginTop: 20,
+  },
+  themeToggle: {
+    marginTop: 20,
   },
   errorText: {
     color: 'red',
-    marginBottom: 0.04 * width, // Dynamic error text margin
-    fontSize: 0.04 * width, // Error text size
-  },
-  input: {
-    marginBottom: 0.04 * width,
-    width: '100%',
-    fontSize: 0.045 * width, // Input text size
-  },
-  button: {
-    marginTop: 0.04 * width,
-    width: '100%',
-    paddingVertical: 0.03 * width, // Dynamic button padding
-  },
-  switchButton: {
-    marginTop: 0.04 * width,
-    width: '100%',
-    fontSize: 0.045 * width, // Switch button font size
-  },
-  themeToggle: {
-    marginTop: 0.06 * width,
-    width: '100%',
-    fontSize: 0.045 * width, // Theme toggle font size
-  },
-  passwordCriteria: {
-    marginBottom: 0.04 * width,
-    width: '100%',
-  },
-  valid: {
-    color: 'green',
-  },
-  invalid: {
-    color: 'red',
+    textAlign: 'center',
+    marginBottom: 10,
   },
 });
+
+export default GlobalStyles;
