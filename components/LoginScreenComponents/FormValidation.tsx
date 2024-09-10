@@ -2,8 +2,17 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Icon } from '@ui-kitten/components';
 
-export default function FormValidation({ password, email, isSigningUp }: { password: string, email: string, isSigningUp: boolean }) {
-  
+export default function FormValidation({
+  password,
+  email,
+  confirmPassword,
+  isSigningUp,
+}: {
+  password: string;
+  email: string;
+  confirmPassword: string;
+  isSigningUp: boolean;
+}) {
   // Helper function to validate email format
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17,6 +26,9 @@ export default function FormValidation({ password, email, isSigningUp }: { passw
     const hasNumber = /\d/.test(password);
     return { hasMinLength, hasUppercase, hasNumber };
   };
+
+  // Check if passwords match
+  const passwordsMatch = password === confirmPassword;
 
   const emailValid = validateEmail(email);
   const passwordValidation = validatePassword(password);
@@ -49,6 +61,13 @@ export default function FormValidation({ password, email, isSigningUp }: { passw
             {renderValidationIcon(passwordValidation.hasNumber)}
             <Text status={passwordValidation.hasNumber ? 'success' : 'danger'}>
               At least 1 number
+            </Text>
+          </View>
+          {/* Password matching validation */}
+          <View style={styles.validationRow}>
+            {renderValidationIcon(passwordsMatch)}
+            <Text status={passwordsMatch ? 'success' : 'danger'}>
+              Passwords must match
             </Text>
           </View>
         </View>

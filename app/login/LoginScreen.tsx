@@ -1,16 +1,8 @@
 import FormValidation from '../../components/LoginScreenComponents/FormValidation';
-import {
-  getRandomName,
-  getRandomAddress,
-  getRandomDob,
-  getRandomPhone,
-  getRandomPassword,
-} from '../../components/LoginScreenComponents/LoginScreenUtils';
-import GlobalStyles from '../../Styles/GlobalStyles';  // Importing GlobalStyles
-
+import GlobalStyles from '../../Styles/GlobalStyles';  
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
-import { Text, Input, Button, CheckBox, Icon, useTheme, IconProps } from '@ui-kitten/components';
+import { Text, Input, Button, Icon, CheckBox, useTheme, IconProps } from '@ui-kitten/components'; // Import CheckBox
 import { auth, GoogleAuthProvider, googleClientId, firestore } from '../../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithCredential } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -28,16 +20,16 @@ export default function LoginScreen() {
   const { isDarkMode, toggleTheme } = useThemeToggle();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(''); // Added confirmPassword for validation
   const [name, setName] = useState('');
-  const [dob, setDob] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
+  const [emailError, setEmailError] = useState(''); // Modify to hold the error message
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -115,10 +107,23 @@ export default function LoginScreen() {
     });
   };
 
+  // Email validation helper function
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleLogin = async () => {
+    setEmailError(''); // Reset email error before validation
+    setError(''); // Reset error before validation
     const loaderTimeout = startLoadingWithDelay();
     try {
       await simulateDelay();
+      if (!validateEmail(email)) {
+        setEmailError('Invalid email format'); // Show error if email is invalid
+        stopLoading(loaderTimeout);
+        return;
+      }
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       if (rememberMe) {
         await AsyncStorage.setItem('rememberedUser', JSON.stringify({ email, password }));
@@ -138,17 +143,22 @@ export default function LoginScreen() {
   };
 
   const handleSignup = async () => {
+    setEmailError(''); // Reset email error before validation
+    setError(''); // Reset error before validation
     const loaderTimeout = startLoadingWithDelay();
     try {
       await simulateDelay();
 
-      if (__DEV__) {
-        setName(getRandomName());
-        setAddress(getRandomAddress());
-        setPhone(getRandomPhone());
-        setDob(getRandomDob());
-        setPassword(getRandomPassword());
-        console.log(`Generated random user: ${name}, ${address}, ${phone}, ${dob}`);
+      if (!validateEmail(email)) {
+        setEmailError('Invalid email format'); // Show error if email is invalid
+        stopLoading(loaderTimeout);
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setPasswordError('Passwords do not match');
+        stopLoading(loaderTimeout);
+        return;
       }
 
       if (password.length < 8 || !/\d/.test(password) || !/[a-zA-Z]/.test(password)) {
@@ -162,9 +172,6 @@ export default function LoginScreen() {
 
       await setDoc(doc(firestore, 'users', user.uid), {
         name,
-        dob,
-        phone,
-        address,
         email: user.email,
       });
 
@@ -172,10 +179,8 @@ export default function LoginScreen() {
 
       setEmail('');  
       setPassword('');
+      setConfirmPassword('');
       setName('');
-      setDob('');
-      setPhone('');
-      setAddress('');
     } catch (error) {
       if (error instanceof FirebaseError) {
         setError(error.message);
@@ -197,6 +202,11 @@ export default function LoginScreen() {
     <Icon {...props} name={name} />
   );
 
+  const preventCopyPaste = {
+    onPaste: (e: any) => e.preventDefault(),
+    onCopy: (e: any) => e.preventDefault(),
+  };
+
   if (loading && showLoader) {
     return <LoadingScreen />;
   }
@@ -215,58 +225,80 @@ export default function LoginScreen() {
           {isSigningUp && (
             <>
               <Input
-                placeholder="Name"
+                placeholder="First Name"
                 value={name}
                 onChangeText={setName}
                 accessoryLeft={renderIcon('person-outline')}
                 style={GlobalStyles.input}
               />
+
               <Input
-                placeholder="Date of Birth"
-                value={dob}
-                onChangeText={setDob}
-                accessoryLeft={renderIcon('calendar-outline')}
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
                 style={GlobalStyles.input}
+                accessoryLeft={renderIcon('email-outline')}
               />
+              {emailError && <Text status="danger" style={GlobalStyles.errorText}>{emailError}</Text>}
+              
               <Input
-                placeholder="Phone Number"
-                value={phone}
-                onChangeText={setPhone}
-                accessoryLeft={renderIcon('phone-outline')}
+                placeholder="Password"
+                value={password}
+                secureTextEntry={true}  // No show password on signup
+                onChangeText={setPassword}
                 style={GlobalStyles.input}
+                accessoryLeft={renderIcon('lock-outline')}
+              />
+
+              <Input
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                secureTextEntry={true}  // No show password on signup
+                onChangeText={setConfirmPassword}
+                style={GlobalStyles.input}
+                accessoryLeft={renderIcon('lock-outline')}
+                {...preventCopyPaste}
+              />
+
+              {passwordError && <Text status="danger" style={GlobalStyles.errorText}>{passwordError}</Text>}
+            </>
+          )}
+
+          {!isSigningUp && (
+            <>
+              <Input
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                style={GlobalStyles.input}
+                accessoryLeft={renderIcon('email-outline')}
+              />
+              {emailError && <Text status="danger" style={GlobalStyles.errorText}>{emailError}</Text>}
+              
+              <Input
+                placeholder="Password"
+                value={password}
+                secureTextEntry={!passwordVisible}
+                accessoryRight={renderPasswordIcon}
+                onChangeText={setPassword}
+                style={GlobalStyles.input}
+                accessoryLeft={renderIcon('lock-outline')}
               />
             </>
           )}
 
-          <Input
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            style={GlobalStyles.input}
-            accessoryLeft={renderIcon('email-outline')}
-          />
-          
-          <Input
-            placeholder="Password"
-            value={password}
-            secureTextEntry={!passwordVisible}
-            accessoryRight={renderPasswordIcon}
-            onChangeText={setPassword}
-            style={GlobalStyles.input}
-            accessoryLeft={renderIcon('lock-outline')}
-          />
-
-          {/* Show password error below the input but above validation */}
           {error && <Text status="danger" style={GlobalStyles.errorText}>{error}</Text>}
 
-          <FormValidation email={email} password={password} isSigningUp={isSigningUp} />
+          <FormValidation email={email} password={password} confirmPassword={confirmPassword} isSigningUp={isSigningUp} />
 
-          <View style={GlobalStyles.rememberMeContainer}>
-            <CheckBox checked={rememberMe} onChange={(nextChecked) => setRememberMe(nextChecked)}>
-              Remember Me
-            </CheckBox>
-            <Text style={GlobalStyles.forgotPassword}>Forgot Password?</Text>
-          </View>
+          {!isSigningUp && (
+            <View style={GlobalStyles.rememberMeContainer}>
+              <CheckBox checked={rememberMe} onChange={(nextChecked: boolean) => setRememberMe(nextChecked)}>
+                Remember Me
+              </CheckBox>
+              <Text style={GlobalStyles.forgotPassword}>Forgot Password?</Text>
+            </View>
+          )}
 
           <Button style={GlobalStyles.loginButton} onPress={isSigningUp ? handleSignup : handleLogin}>
             {isSigningUp ? 'CREATE USER' : 'LOGIN WITH EMAIL'}
