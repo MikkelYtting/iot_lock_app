@@ -30,6 +30,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const [emailError, setEmailError] = useState(''); // Modify to hold the error message
+  const [isFormSubmitted, setIsFormSubmitted] = useState(false); // Track if form has been submitted
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -116,6 +117,7 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     setEmailError(''); // Reset email error before validation
     setError(''); // Reset error before validation
+    setIsFormSubmitted(true); // Mark form as submitted
     const loaderTimeout = startLoadingWithDelay();
     try {
       await simulateDelay();
@@ -145,6 +147,7 @@ export default function LoginScreen() {
   const handleSignup = async () => {
     setEmailError(''); // Reset email error before validation
     setError(''); // Reset error before validation
+    setIsFormSubmitted(true); // Mark form as submitted
     const loaderTimeout = startLoadingWithDelay();
     try {
       await simulateDelay();
@@ -239,7 +242,7 @@ export default function LoginScreen() {
                 style={GlobalStyles.input}
                 accessoryLeft={renderIcon('email-outline')}
               />
-              {emailError && <Text status="danger" style={GlobalStyles.errorText}>{emailError}</Text>}
+              {isFormSubmitted && emailError && <Text status="danger" style={GlobalStyles.errorText}>{emailError}</Text>}
               
               <Input
                 placeholder="Password"
@@ -273,7 +276,7 @@ export default function LoginScreen() {
                 style={GlobalStyles.input}
                 accessoryLeft={renderIcon('email-outline')}
               />
-              {emailError && <Text status="danger" style={GlobalStyles.errorText}>{emailError}</Text>}
+              {isFormSubmitted && emailError && <Text status="danger" style={GlobalStyles.errorText}>{emailError}</Text>}
               
               <Input
                 placeholder="Password"
@@ -289,7 +292,7 @@ export default function LoginScreen() {
 
           {error && <Text status="danger" style={GlobalStyles.errorText}>{error}</Text>}
 
-          <FormValidation email={email} password={password} confirmPassword={confirmPassword} isSigningUp={isSigningUp} />
+          <FormValidation email={email} password={password} confirmPassword={confirmPassword} isSigningUp={isSigningUp} showEmailError={!!emailError} />
 
           {!isSigningUp && (
             <View style={GlobalStyles.rememberMeContainer}>

@@ -7,11 +7,13 @@ export default function FormValidation({
   email,
   confirmPassword,
   isSigningUp,
+  showEmailError, // New prop to control when to show the email error
 }: {
   password: string;
   email: string;
   confirmPassword: string;
   isSigningUp: boolean;
+  showEmailError: boolean; // New prop type
 }) {
   // Helper function to validate email format
   const validateEmail = (email: string) => {
@@ -72,7 +74,7 @@ export default function FormValidation({
           </View>
         </View>
       )}
-      {!emailValid && <Text status="danger">Invalid email format</Text>}
+      {showEmailError && !emailValid && <Text status="danger">Invalid email format</Text>}
     </View>
   );
 }
