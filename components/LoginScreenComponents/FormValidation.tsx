@@ -5,22 +5,14 @@ import { Text, Icon } from '@ui-kitten/components';
 export default function FormValidation({
   password,
   confirmPassword,
-  email,
   isSigningUp,
   isFormSubmitted,
 }: {
   password: string;
   confirmPassword: string;
-  email: string;
   isSigningUp: boolean;
   isFormSubmitted: boolean;
 }) {
-  // Helper function to validate email format
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
   // Helper function to check password strength
   const validatePassword = (password: string) => {
     const hasMinLength = password.length >= 8;
@@ -32,7 +24,6 @@ export default function FormValidation({
   // Check if passwords match
   const passwordsMatch = password === confirmPassword;
   const passwordValidation = validatePassword(password);
-  const emailValid = validateEmail(email);
 
   const renderValidationIcon = (isValid: boolean) => (
     <Icon
@@ -44,11 +35,6 @@ export default function FormValidation({
 
   return (
     <View>
-      {/* Only show email validation error if the form has been submitted */}
-      {isFormSubmitted && !emailValid && (
-        <Text status="danger">Invalid email format</Text>
-      )}
-
       {isSigningUp && (
         <View style={styles.passwordValidation}>
           <View style={styles.validationRow}>
@@ -69,7 +55,6 @@ export default function FormValidation({
               At least 1 number
             </Text>
           </View>
-          {/* Password matching validation */}
           <View style={styles.validationRow}>
             {renderValidationIcon(passwordsMatch)}
             <Text status={passwordsMatch ? 'success' : 'danger'}>

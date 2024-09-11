@@ -29,7 +29,6 @@ export default function LoginScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
-  const [emailError, setEmailError] = useState('');
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -108,21 +107,9 @@ export default function LoginScreen() {
     });
   };
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
   const handleLogin = async () => {
-    setEmailError('');
     setError('');
     setIsFormSubmitted(true);
-
-    // Prevent submission if email is invalid
-    if (!validateEmail(email)) {
-      setEmailError('Invalid email format');
-      return;
-    }
 
     const loaderTimeout = startLoadingWithDelay();
     try {
@@ -160,15 +147,8 @@ export default function LoginScreen() {
   };
 
   const handleSignup = async () => {
-    setEmailError('');
     setError('');
     setIsFormSubmitted(true);
-
-    // Prevent submission if email is invalid
-    if (!validateEmail(email)) {
-      setEmailError('Invalid email format');
-      return;
-    }
 
     const loaderTimeout = startLoadingWithDelay();
     try {
@@ -229,7 +209,6 @@ export default function LoginScreen() {
   const handleModeSwitch = () => {
     setIsSigningUp(!isSigningUp);
     setError(''); // Clear the error when switching between login and signup
-    setEmailError(''); // Clear the email error
   };
 
   if (loading && showLoader) {
@@ -264,8 +243,6 @@ export default function LoginScreen() {
                 style={GlobalStyles.input}
                 accessoryLeft={renderIcon('email-outline')}
               />
-              {/* Email error is now moved below the email input */}
-              {isFormSubmitted && emailError && <Text status="danger" style={GlobalStyles.errorText}>{emailError}</Text>}
               
               <Input
                 placeholder="Password"
@@ -299,8 +276,6 @@ export default function LoginScreen() {
                 style={GlobalStyles.input}
                 accessoryLeft={renderIcon('email-outline')}
               />
-              {/* Email error is now moved below the email input */}
-              {isFormSubmitted && emailError && <Text status="danger" style={GlobalStyles.errorText}>{emailError}</Text>}
               
               <Input
                 placeholder="Password"
@@ -317,7 +292,6 @@ export default function LoginScreen() {
           {error && <Text status="danger" style={GlobalStyles.errorText}>{error}</Text>}
 
           <FormValidation 
-            email={email} 
             password={password} 
             confirmPassword={confirmPassword} 
             isSigningUp={isSigningUp} 
