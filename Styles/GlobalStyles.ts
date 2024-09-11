@@ -1,4 +1,4 @@
-// GlobalStyles.ts
+// Adjusted the styles to ensure consistency across the app
 import { StyleSheet, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -24,7 +24,7 @@ const GlobalStyles = StyleSheet.create({
   },
   title: {
     textAlign: 'center',
-    fontSize: 24,
+    fontSize: width * 0.04, // Dynamic font size
     marginBottom: 20,
     color: '#fff',
   },
@@ -32,6 +32,7 @@ const GlobalStyles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     color: 'grey',
+    fontSize: width * 0.02, // Dynamic font size
   },
   input: {
     marginBottom: 20,
@@ -45,6 +46,7 @@ const GlobalStyles = StyleSheet.create({
   forgotPassword: {
     color: '#fff',
     textDecorationLine: 'underline',
+    fontSize: width * 0.01, // Same size as Remember Me
   },
   loginButton: {
     backgroundColor: '#FF0000',
@@ -68,6 +70,7 @@ const GlobalStyles = StyleSheet.create({
   orText: {
     marginHorizontal: 10,
     color: 'grey',
+    fontSize: width * 0.035, // Match the size with the validation text
   },
   switchButton: {
     marginTop: 20,
@@ -79,6 +82,7 @@ const GlobalStyles = StyleSheet.create({
     color: 'red',
     textAlign: 'center',
     marginBottom: 10,
+    fontSize: width * 0.03, // Match the validation text size
   },
 });
 

@@ -36,7 +36,10 @@ export default function LoginScreen() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const [borderAnim] = useState(new Animated.Value(0)); // For animating the border color
+  const [borderAnim] = useState(new Animated.Value(0)); // For animating the email border color
+  const [passwordBorderAnim] = useState(new Animated.Value(0)); // For animating the password border color
+  const [confirmPasswordBorderAnim] = useState(new Animated.Value(0)); // For animating the confirm password border color
+
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: googleClientId,
     redirectUri: makeRedirectUri({
@@ -154,13 +157,12 @@ export default function LoginScreen() {
     setError('');
     setIsFormSubmitted(true);
 
-    // Mark that the email validation attempt has been made
+    // Validate email first
     setIsEmailAttempted(true);
-
-    // Check email validation
+    let emailValid = true;
     if (!validateEmail(email)) {
-      setEmailError(true); // Show email error message
-      // Trigger the glowing effect on the border
+      setEmailError(true); // Trigger email glow effect
+      emailValid = false;
       Animated.sequence([
         Animated.timing(borderAnim, {
           toValue: 1,
@@ -172,25 +174,61 @@ export default function LoginScreen() {
           duration: 500,
           useNativeDriver: false,
         }),
-      ]).start(); // Animate the border glow effect
+      ]).start();
+    }
+
+    // Validate password
+    const invalidPassword = password !== confirmPassword || password.length < 8 || !/\d/.test(password) || !/[a-zA-Z]/.test(password);
+    if (invalidPassword) {
+      setPasswordError('Passwords must match and be at least 8 characters long with both letters and numbers.');
+      Animated.sequence([
+        Animated.timing(passwordBorderAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(passwordBorderAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: false,
+        }),
+      ]).start(); // Animate password glow
+
+      Animated.sequence([
+        Animated.timing(confirmPasswordBorderAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(confirmPasswordBorderAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: false,
+        }),
+      ]).start(); // Animate confirm password glow
+    } else {
+      // Clear error and glow effect if passwords are valid
+      setPasswordError('');
+      Animated.timing(passwordBorderAnim, {
+        toValue: 0,
+        duration: 0,
+        useNativeDriver: false,
+      }).start();
+      Animated.timing(confirmPasswordBorderAnim, {
+        toValue: 0,
+        duration: 0,
+        useNativeDriver: false,
+      }).start();
+    }
+
+    // Return early if email or password validation fails
+    if (!emailValid || invalidPassword) {
       return;
     }
 
     const loaderTimeout = startLoadingWithDelay();
     try {
       await simulateDelay();
-
-      if (password !== confirmPassword) {
-        setPasswordError('Passwords do not match');
-        stopLoading(loaderTimeout);
-        return;
-      }
-
-      if (password.length < 8 || !/\d/.test(password) || !/[a-zA-Z]/.test(password)) {
-        setError('Password must be at least 8 characters long and contain both letters and numbers.');
-        stopLoading(loaderTimeout);
-        return;
-      }
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -202,6 +240,7 @@ export default function LoginScreen() {
 
       router.replace('/(tabs)/home/HomeScreen');
 
+      // Clear the form on successful signup
       setEmail('');  
       setPassword('');
       setConfirmPassword('');
@@ -243,7 +282,17 @@ export default function LoginScreen() {
 
   const animatedBorderColor = borderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#ff0000', '#ffffff'], // Red to white glow effect
+    outputRange: ['#ff0000', '#ffffff'], // Red to white glow effect for email
+  });
+
+  const animatedPasswordBorderColor = passwordBorderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#ff0000', '#ffffff'], // Red to white glow effect for password
+  });
+
+  const animatedConfirmPasswordBorderColor = confirmPasswordBorderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#ff0000', '#ffffff'], // Red to white glow effect for confirm password
   });
 
   return (
@@ -270,8 +319,10 @@ export default function LoginScreen() {
               <Animated.View style={{ 
                   borderColor: animatedBorderColor, 
                   borderWidth: isEmailAttempted && emailError ? 2 : 0, 
-                  borderRadius: 4, // Ensure border matches input field
-                  overflow: 'hidden' // This ensures the border doesn't overlap
+                  borderRadius: 4, 
+                  overflow: 'hidden', 
+                  paddingVertical: 0, 
+                  marginVertical: 0
                 }}>
                 <Input
                   placeholder="Email"
@@ -279,11 +330,11 @@ export default function LoginScreen() {
                   onChangeText={(value) => {
                     setEmail(value);
                     if (validateEmail(value)) {
-                      setEmailError(false); // Hide error when valid email is entered
+                      setEmailError(false); 
                     }
                   }}
                   status={isEmailAttempted && emailError ? 'danger' : 'basic'}
-                  style={GlobalStyles.input}
+                  style={{...GlobalStyles.input, paddingVertical: 0, marginVertical: 0 }} 
                   accessoryLeft={renderIcon('email-outline')}
                 />
               </Animated.View>
@@ -293,24 +344,28 @@ export default function LoginScreen() {
                 </Text>
               )}
               
-              <Input
-                placeholder="Password"
-                value={password}
-                secureTextEntry={true}
-                onChangeText={setPassword}
-                style={GlobalStyles.input}
-                accessoryLeft={renderIcon('lock-outline')}
-              />
+              <Animated.View style={{ borderColor: animatedPasswordBorderColor, borderWidth: passwordError ? 2 : 0 }}>
+                <Input
+                  placeholder="Password"
+                  value={password}
+                  secureTextEntry={true}
+                  onChangeText={setPassword}
+                  style={GlobalStyles.input}
+                  accessoryLeft={renderIcon('lock-outline')}
+                />
+              </Animated.View>
 
-              <Input
-                placeholder="Confirm Password"
-                value={confirmPassword}
-                secureTextEntry={true}
-                onChangeText={setConfirmPassword}
-                style={GlobalStyles.input}
-                accessoryLeft={renderIcon('lock-outline')}
-                {...preventCopyPaste}
-              />
+              <Animated.View style={{ borderColor: animatedConfirmPasswordBorderColor, borderWidth: passwordError ? 2 : 0 }}>
+                <Input
+                  placeholder="Confirm Password"
+                  value={confirmPassword}
+                  secureTextEntry={true}
+                  onChangeText={setConfirmPassword}
+                  style={GlobalStyles.input}
+                  accessoryLeft={renderIcon('lock-outline')}
+                  {...preventCopyPaste}
+                />
+              </Animated.View>
 
               {passwordError && <Text status="danger" style={GlobalStyles.errorText}>{passwordError}</Text>}
             </>
