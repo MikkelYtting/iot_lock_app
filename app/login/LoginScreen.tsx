@@ -2,7 +2,7 @@ import FormValidation from '../../components/LoginScreenComponents/FormValidatio
 import GlobalStyles from '../../Styles/GlobalStyles';  
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
-import { Text, Input, Button, Icon, CheckBox, useTheme, IconProps } from '@ui-kitten/components'; // Import CheckBox
+import { Text, Input, Button, Icon, CheckBox, useTheme, IconProps } from '@ui-kitten/components'; 
 import { auth, GoogleAuthProvider, googleClientId, firestore } from '../../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithCredential } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,7 +20,7 @@ export default function LoginScreen() {
   const { isDarkMode, toggleTheme } = useThemeToggle();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState(''); // Added confirmPassword for validation
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
@@ -29,8 +29,8 @@ export default function LoginScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
-  const [emailError, setEmailError] = useState(''); // Modify to hold the error message
-  const [isFormSubmitted, setIsFormSubmitted] = useState(false); // Track if form has been submitted
+  const [emailError, setEmailError] = useState('');
+  const [isFormSubmitted, setIsFormSubmitted] = useState(false);
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -108,24 +108,26 @@ export default function LoginScreen() {
     });
   };
 
-  // Email validation helper function
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
   const handleLogin = async () => {
-    setEmailError(''); // Reset email error before validation
-    setError(''); // Reset error before validation
-    setIsFormSubmitted(true); // Mark form as submitted
+    setEmailError('');
+    setError('');
+    setIsFormSubmitted(true);
+
+    // Prevent submission if email is invalid
+    if (!validateEmail(email)) {
+      setEmailError('Invalid email format');
+      return;
+    }
+
     const loaderTimeout = startLoadingWithDelay();
     try {
       await simulateDelay();
-      if (!validateEmail(email)) {
-        setEmailError('Invalid email format'); // Show error if email is invalid
-        stopLoading(loaderTimeout);
-        return;
-      }
+
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       if (rememberMe) {
         await AsyncStorage.setItem('rememberedUser', JSON.stringify({ email, password }));
@@ -135,7 +137,20 @@ export default function LoginScreen() {
       router.replace('/(tabs)/home/HomeScreen');
     } catch (error) {
       if (error instanceof FirebaseError) {
-        setError(error.message);
+        switch (error.code) {
+          case 'auth/invalid-credential':
+          case 'auth/wrong-password':
+            setError('Invalid login credentials. Please try again.');
+            break;
+          case 'auth/user-not-found':
+            setError('No account found with this email. Please sign up.');
+            break;
+          case 'auth/too-many-requests':
+            setError('Too many login attempts. Please try again later.');
+            break;
+          default:
+            setError('An unknown error occurred. Please try again later.');
+        }
       } else {
         setError('An unknown error occurred.');
       }
@@ -145,18 +160,19 @@ export default function LoginScreen() {
   };
 
   const handleSignup = async () => {
-    setEmailError(''); // Reset email error before validation
-    setError(''); // Reset error before validation
-    setIsFormSubmitted(true); // Mark form as submitted
+    setEmailError('');
+    setError('');
+    setIsFormSubmitted(true);
+
+    // Prevent submission if email is invalid
+    if (!validateEmail(email)) {
+      setEmailError('Invalid email format');
+      return;
+    }
+
     const loaderTimeout = startLoadingWithDelay();
     try {
       await simulateDelay();
-
-      if (!validateEmail(email)) {
-        setEmailError('Invalid email format'); // Show error if email is invalid
-        stopLoading(loaderTimeout);
-        return;
-      }
 
       if (password !== confirmPassword) {
         setPasswordError('Passwords do not match');
@@ -210,6 +226,12 @@ export default function LoginScreen() {
     onCopy: (e: any) => e.preventDefault(),
   };
 
+  const handleModeSwitch = () => {
+    setIsSigningUp(!isSigningUp);
+    setError(''); // Clear the error when switching between login and signup
+    setEmailError(''); // Clear the email error
+  };
+
   if (loading && showLoader) {
     return <LoadingScreen />;
   }
@@ -242,12 +264,13 @@ export default function LoginScreen() {
                 style={GlobalStyles.input}
                 accessoryLeft={renderIcon('email-outline')}
               />
+              {/* Email error is now moved below the email input */}
               {isFormSubmitted && emailError && <Text status="danger" style={GlobalStyles.errorText}>{emailError}</Text>}
               
               <Input
                 placeholder="Password"
                 value={password}
-                secureTextEntry={true}  // No show password on signup
+                secureTextEntry={true}
                 onChangeText={setPassword}
                 style={GlobalStyles.input}
                 accessoryLeft={renderIcon('lock-outline')}
@@ -256,7 +279,7 @@ export default function LoginScreen() {
               <Input
                 placeholder="Confirm Password"
                 value={confirmPassword}
-                secureTextEntry={true}  // No show password on signup
+                secureTextEntry={true}
                 onChangeText={setConfirmPassword}
                 style={GlobalStyles.input}
                 accessoryLeft={renderIcon('lock-outline')}
@@ -276,6 +299,7 @@ export default function LoginScreen() {
                 style={GlobalStyles.input}
                 accessoryLeft={renderIcon('email-outline')}
               />
+              {/* Email error is now moved below the email input */}
               {isFormSubmitted && emailError && <Text status="danger" style={GlobalStyles.errorText}>{emailError}</Text>}
               
               <Input
@@ -292,7 +316,13 @@ export default function LoginScreen() {
 
           {error && <Text status="danger" style={GlobalStyles.errorText}>{error}</Text>}
 
-          <FormValidation email={email} password={password} confirmPassword={confirmPassword} isSigningUp={isSigningUp} showEmailError={!!emailError} />
+          <FormValidation 
+            email={email} 
+            password={password} 
+            confirmPassword={confirmPassword} 
+            isSigningUp={isSigningUp} 
+            isFormSubmitted={isFormSubmitted} 
+          />
 
           {!isSigningUp && (
             <View style={GlobalStyles.rememberMeContainer}>
@@ -317,7 +347,7 @@ export default function LoginScreen() {
             <View style={GlobalStyles.line} />
           </View>
 
-          <Button appearance="ghost" style={GlobalStyles.switchButton} onPress={() => setIsSigningUp(!isSigningUp)}>
+          <Button appearance="ghost" style={GlobalStyles.switchButton} onPress={handleModeSwitch}>
             {isSigningUp ? 'Already have an account? Sign In' : 'Don’t have an account? Sign Up'}
           </Button>
 

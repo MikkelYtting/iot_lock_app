@@ -4,16 +4,16 @@ import { Text, Icon } from '@ui-kitten/components';
 
 export default function FormValidation({
   password,
-  email,
   confirmPassword,
+  email,
   isSigningUp,
-  showEmailError, // New prop to control when to show the email error
+  isFormSubmitted,
 }: {
   password: string;
-  email: string;
   confirmPassword: string;
+  email: string;
   isSigningUp: boolean;
-  showEmailError: boolean; // New prop type
+  isFormSubmitted: boolean;
 }) {
   // Helper function to validate email format
   const validateEmail = (email: string) => {
@@ -31,9 +31,8 @@ export default function FormValidation({
 
   // Check if passwords match
   const passwordsMatch = password === confirmPassword;
-
-  const emailValid = validateEmail(email);
   const passwordValidation = validatePassword(password);
+  const emailValid = validateEmail(email);
 
   const renderValidationIcon = (isValid: boolean) => (
     <Icon
@@ -45,6 +44,11 @@ export default function FormValidation({
 
   return (
     <View>
+      {/* Only show email validation error if the form has been submitted */}
+      {isFormSubmitted && !emailValid && (
+        <Text status="danger">Invalid email format</Text>
+      )}
+
       {isSigningUp && (
         <View style={styles.passwordValidation}>
           <View style={styles.validationRow}>
@@ -74,7 +78,6 @@ export default function FormValidation({
           </View>
         </View>
       )}
-      {showEmailError && !emailValid && <Text status="danger">Invalid email format</Text>}
     </View>
   );
 }
