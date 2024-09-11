@@ -36,6 +36,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  const [borderAnim] = useState(new Animated.Value(0)); // For animating the border color
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: googleClientId,
     redirectUri: makeRedirectUri({
@@ -159,6 +160,19 @@ export default function LoginScreen() {
     // Check email validation
     if (!validateEmail(email)) {
       setEmailError(true); // Show email error message
+      // Trigger the glowing effect on the border
+      Animated.sequence([
+        Animated.timing(borderAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(borderAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: false,
+        }),
+      ]).start(); // Animate the border glow effect
       return;
     }
 
@@ -227,6 +241,11 @@ export default function LoginScreen() {
     return <LoadingScreen />;
   }
 
+  const animatedBorderColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#ff0000', '#ffffff'], // Red to white glow effect
+  });
+
   return (
     <LinearGradient colors={['#0D0000', 'black', '#0D0000']} style={GlobalStyles.background}>
       <Animated.View style={[GlobalStyles.container, { opacity: fadeAnim }]}>
@@ -237,7 +256,7 @@ export default function LoginScreen() {
           <Text category="s1" appearance="hint" style={GlobalStyles.subtitle}>
             {isSigningUp ? 'Enter your details to create an account' : 'Enter your login information'}
           </Text>
-          
+
           {isSigningUp && (
             <>
               <Input
@@ -248,20 +267,26 @@ export default function LoginScreen() {
                 style={GlobalStyles.input}
               />
 
-              <Input
-                placeholder="Email"
-                value={email}
-                onChangeText={(value) => {
-                  setEmail(value);
-                  if (validateEmail(value)) {
-                    setEmailError(false); // Hide error when valid email is entered
-                  }
-                }}
-                status={isEmailAttempted && emailError ? 'danger' : 'basic'} // Apply 'danger' status for invalid email
-                style={GlobalStyles.input}
-                accessoryLeft={renderIcon('email-outline')}
-              />
-              {/* Render email validation error directly below the email input */}
+              <Animated.View style={{ 
+                  borderColor: animatedBorderColor, 
+                  borderWidth: isEmailAttempted && emailError ? 2 : 0, 
+                  borderRadius: 4, // Ensure border matches input field
+                  overflow: 'hidden' // This ensures the border doesn't overlap
+                }}>
+                <Input
+                  placeholder="Email"
+                  value={email}
+                  onChangeText={(value) => {
+                    setEmail(value);
+                    if (validateEmail(value)) {
+                      setEmailError(false); // Hide error when valid email is entered
+                    }
+                  }}
+                  status={isEmailAttempted && emailError ? 'danger' : 'basic'}
+                  style={GlobalStyles.input}
+                  accessoryLeft={renderIcon('email-outline')}
+                />
+              </Animated.View>
               {isEmailAttempted && emailError && (
                 <Text status="danger" style={GlobalStyles.errorText}>
                   Invalid email format
