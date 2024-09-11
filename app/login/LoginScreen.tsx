@@ -253,15 +253,15 @@ export default function LoginScreen() {
                 value={email}
                 onChangeText={(value) => {
                   setEmail(value);
-                  // Reset email error only if it's valid
                   if (validateEmail(value)) {
-                    setEmailError(false);
+                    setEmailError(false); // Hide error when valid email is entered
                   }
                 }}
+                status={isEmailAttempted && emailError ? 'danger' : 'basic'} // Apply 'danger' status for invalid email
                 style={GlobalStyles.input}
                 accessoryLeft={renderIcon('email-outline')}
               />
-              {/* Show email error only after the user tries to submit */}
+              {/* Render email validation error directly below the email input */}
               {isEmailAttempted && emailError && (
                 <Text status="danger" style={GlobalStyles.errorText}>
                   Invalid email format
