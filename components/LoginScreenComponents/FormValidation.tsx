@@ -2,14 +2,21 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Icon } from '@ui-kitten/components';
 
+export function validateEmail(email: string) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
 export default function FormValidation({
   password,
   confirmPassword,
+  email,
   isSigningUp,
   isFormSubmitted,
 }: {
   password: string;
   confirmPassword: string;
+  email: string;
   isSigningUp: boolean;
   isFormSubmitted: boolean;
 }) {

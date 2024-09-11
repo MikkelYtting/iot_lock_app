@@ -1,4 +1,5 @@
-import FormValidation from '../../components/LoginScreenComponents/FormValidation';
+import FormValidation from '../../components/LoginScreenComponents/FormValidation'; // Ensure this import exists
+import { validateEmail } from '../../components/LoginScreenComponents/FormValidation'; // Import the validateEmail function
 import GlobalStyles from '../../Styles/GlobalStyles';  
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
@@ -25,6 +26,8 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [emailError, setEmailError] = useState(false); // State to track email error
+  const [isEmailAttempted, setIsEmailAttempted] = useState(false); // New state to track if user has tried to submit
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -150,6 +153,15 @@ export default function LoginScreen() {
     setError('');
     setIsFormSubmitted(true);
 
+    // Mark that the email validation attempt has been made
+    setIsEmailAttempted(true);
+
+    // Check email validation
+    if (!validateEmail(email)) {
+      setEmailError(true); // Show email error message
+      return;
+    }
+
     const loaderTimeout = startLoadingWithDelay();
     try {
       await simulateDelay();
@@ -239,10 +251,22 @@ export default function LoginScreen() {
               <Input
                 placeholder="Email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(value) => {
+                  setEmail(value);
+                  // Reset email error only if it's valid
+                  if (validateEmail(value)) {
+                    setEmailError(false);
+                  }
+                }}
                 style={GlobalStyles.input}
                 accessoryLeft={renderIcon('email-outline')}
               />
+              {/* Show email error only after the user tries to submit */}
+              {isEmailAttempted && emailError && (
+                <Text status="danger" style={GlobalStyles.errorText}>
+                  Invalid email format
+                </Text>
+              )}
               
               <Input
                 placeholder="Password"
@@ -294,6 +318,7 @@ export default function LoginScreen() {
           <FormValidation 
             password={password} 
             confirmPassword={confirmPassword} 
+            email={email}
             isSigningUp={isSigningUp} 
             isFormSubmitted={isFormSubmitted} 
           />
