@@ -28,7 +28,7 @@ const GlobalStyles = StyleSheet.create({
   title: {
     // Style for the main title, centered and dynamically sized
     textAlign: 'center', // Centers the text horizontally
-    fontSize: width * 0.08, // Font size is 8% of the screen width, making it responsive
+    fontSize: width * 0.05, // Font size is 8% of the screen width, making it responsive
     marginBottom: 20, // Adds space below the title
     color: '#fff', // Title color is white
   },
@@ -37,7 +37,7 @@ const GlobalStyles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20, // Adds space below the subtitle
     color: 'grey', // Subtitle color is grey
-    fontSize: width * 0.045, // Font size is 4.5% of the screen width, keeping it responsive
+    fontSize: width * 0.03, // Font size is 4.5% of the screen width, keeping it responsive
   },
   input: {
     // Style for text input fields, spaced and with a background color for visibility
@@ -54,7 +54,7 @@ const GlobalStyles = StyleSheet.create({
   },
   rememberMeText: {
     // Style for the "Remember Me" text
-    fontSize: width * 0.01, // Font size is 2% of the screen width
+    fontSize: width * 0.02, // Font size is 2% of the screen width
     color: '#fff', // White text color
     marginLeft: 5, // Adds a small gap between the checkbox and text
   },
@@ -62,7 +62,7 @@ const GlobalStyles = StyleSheet.create({
     // Style for the "Forgot Password" link, similar to the "Remember Me" text
     color: '#fff', // White text color
     textDecorationLine: 'underline', // Underlines the text to indicate a link
-    fontSize: width * 0.01, // Same font size as the "Remember Me" text for consistency
+    fontSize: width * 0.02, // Same font size as the "Remember Me" text for consistency
     marginRight: 5, // Adds a small margin to the right
   },
   loginButton: {
