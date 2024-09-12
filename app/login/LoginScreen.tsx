@@ -1,5 +1,5 @@
-import FormValidation from '../../components/LoginScreenComponents/FormValidation'; // Ensure this import exists
-import { validateEmail } from '../../components/LoginScreenComponents/FormValidation'; // Import the validateEmail function
+import FormValidation from '../../components/LoginScreenComponents/FormValidation'; 
+import { validateEmail } from '../../components/LoginScreenComponents/FormValidation'; 
 import GlobalStyles from '../../Styles/GlobalStyles';  
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
@@ -26,8 +26,8 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [emailError, setEmailError] = useState(false); // State to track email error
-  const [isEmailAttempted, setIsEmailAttempted] = useState(false); // New state to track if user has tried to submit
+  const [emailError, setEmailError] = useState(false); 
+  const [isEmailAttempted, setIsEmailAttempted] = useState(false); 
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -36,9 +36,9 @@ export default function LoginScreen() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const [borderAnim] = useState(new Animated.Value(0)); // For animating the email border color
-  const [passwordBorderAnim] = useState(new Animated.Value(0)); // For animating the password border color
-  const [confirmPasswordBorderAnim] = useState(new Animated.Value(0)); // For animating the confirm password border color
+  const [borderAnim] = useState(new Animated.Value(0)); 
+  const [passwordBorderAnim] = useState(new Animated.Value(0)); 
+  const [confirmPasswordBorderAnim] = useState(new Animated.Value(0)); 
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: googleClientId,
@@ -157,11 +157,10 @@ export default function LoginScreen() {
     setError('');
     setIsFormSubmitted(true);
 
-    // Validate email first
     setIsEmailAttempted(true);
     let emailValid = true;
     if (!validateEmail(email)) {
-      setEmailError(true); // Trigger email glow effect
+      setEmailError(true);
       emailValid = false;
       Animated.sequence([
         Animated.timing(borderAnim, {
@@ -177,7 +176,6 @@ export default function LoginScreen() {
       ]).start();
     }
 
-    // Validate password
     const invalidPassword = password !== confirmPassword || password.length < 8 || !/\d/.test(password) || !/[a-zA-Z]/.test(password);
     if (invalidPassword) {
       setPasswordError('Passwords must match and be at least 8 characters long with both letters and numbers.');
@@ -192,7 +190,7 @@ export default function LoginScreen() {
           duration: 500,
           useNativeDriver: false,
         }),
-      ]).start(); // Animate password glow
+      ]).start();
 
       Animated.sequence([
         Animated.timing(confirmPasswordBorderAnim, {
@@ -205,9 +203,8 @@ export default function LoginScreen() {
           duration: 500,
           useNativeDriver: false,
         }),
-      ]).start(); // Animate confirm password glow
+      ]).start();
     } else {
-      // Clear error and glow effect if passwords are valid
       setPasswordError('');
       Animated.timing(passwordBorderAnim, {
         toValue: 0,
@@ -221,7 +218,6 @@ export default function LoginScreen() {
       }).start();
     }
 
-    // Return early if email or password validation fails
     if (!emailValid || invalidPassword) {
       return;
     }
@@ -240,7 +236,6 @@ export default function LoginScreen() {
 
       router.replace('/(tabs)/home/HomeScreen');
 
-      // Clear the form on successful signup
       setEmail('');  
       setPassword('');
       setConfirmPassword('');
@@ -273,7 +268,7 @@ export default function LoginScreen() {
 
   const handleModeSwitch = () => {
     setIsSigningUp(!isSigningUp);
-    setError(''); // Clear the error when switching between login and signup
+    setError(''); 
   };
 
   if (loading && showLoader) {
@@ -282,17 +277,17 @@ export default function LoginScreen() {
 
   const animatedBorderColor = borderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#ff0000', '#ffffff'], // Red to white glow effect for email
+    outputRange: ['#ff0000', '#ffffff'], 
   });
 
   const animatedPasswordBorderColor = passwordBorderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#ff0000', '#ffffff'], // Red to white glow effect for password
+    outputRange: ['#ff0000', '#ffffff'], 
   });
 
   const animatedConfirmPasswordBorderColor = confirmPasswordBorderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#ff0000', '#ffffff'], // Red to white glow effect for confirm password
+    outputRange: ['#ff0000', '#ffffff'], 
   });
 
   return (
@@ -404,10 +399,15 @@ export default function LoginScreen() {
           />
 
           {!isSigningUp && (
-            <View style={GlobalStyles.rememberMeContainer}>
-              <CheckBox checked={rememberMe} onChange={(nextChecked: boolean) => setRememberMe(nextChecked)}>
-                Remember Me
-              </CheckBox>
+            <View style={[GlobalStyles.rememberMeContainer]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <CheckBox
+                  checked={rememberMe}
+                  onChange={(nextChecked: boolean) => setRememberMe(nextChecked)}
+                  style={GlobalStyles.checkBox}
+                />
+                <Text style={GlobalStyles.rememberMeText}>Remember Me</Text>
+              </View>
               <Text style={GlobalStyles.forgotPassword}>Forgot Password?</Text>
             </View>
           )}
