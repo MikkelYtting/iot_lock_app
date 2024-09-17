@@ -28,7 +28,7 @@ const GlobalStyles = StyleSheet.create({
   title: {
     // Style for the main title, centered and dynamically sized
     textAlign: 'center', // Centers the text horizontally
-    fontSize: width * 0.05, // Font size is 8% of the screen width, making it responsive
+    fontSize: width * 0.05, // Font size is 5% of the screen width, making it responsive
     marginBottom: 20, // Adds space below the title
     color: '#fff', // Title color is white
   },
@@ -37,7 +37,7 @@ const GlobalStyles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20, // Adds space below the subtitle
     color: 'grey', // Subtitle color is grey
-    fontSize: width * 0.03, // Font size is 4.5% of the screen width, keeping it responsive
+    fontSize: width * 0.03, // Font size is 3% of the screen width, keeping it responsive
   },
   input: {
     // Style for text input fields, spaced and with a background color for visibility
@@ -107,6 +107,13 @@ const GlobalStyles = StyleSheet.create({
     color: 'red', // Error text color is red
     textAlign: 'center', // Centers the error text horizontally
     marginBottom: 10, // Adds space below the error message
+    fontSize: width * 0.035, // Font size is 3.5% of the screen width, matching validation text size
+  },
+  successText: {
+    // Style for success messages, green and centered
+    color: 'green', // Success text color is green
+    textAlign: 'center', // Centers the success text horizontally
+    marginBottom: 10, // Adds space below the success message
     fontSize: width * 0.035, // Font size is 3.5% of the screen width, matching validation text size
   },
   checkBox: {

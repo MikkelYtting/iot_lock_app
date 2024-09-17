@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
-import { useRouter, Redirect } from 'expo-router';  // For navigation
+import { useRouter } from 'expo-router';  // For navigation
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../firebase';
 import LoadingScreen from './LoadingScreen';
@@ -11,13 +11,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user) {
-      // Navigate to login if user is not authenticated and not loading
+      // If user is not authenticated, redirect to the login screen
       router.replace('/login/LoginScreen');
     }
   }, [loading, user, router]);
 
   if (loading) {
-    return <LoadingScreen />;  // Show loading while waiting for authentication
+    return <LoadingScreen />;  // Show loading screen while authentication is in progress
   }
 
   if (error) {
@@ -28,6 +28,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If authenticated, render children (the rest of the app)
+  // If authenticated, show the child components (the rest of the app)
   return <>{children}</>;
 }

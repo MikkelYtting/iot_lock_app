@@ -2,7 +2,7 @@ import FormValidation from '../../components/LoginScreenComponents/FormValidatio
 import { validateEmail } from '../../components/LoginScreenComponents/FormValidation'; 
 import GlobalStyles from '../../Styles/GlobalStyles';  
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
+import { View, TouchableWithoutFeedback, Animated, Platform, TouchableOpacity } from 'react-native';
 import { Text, Input, Button, Icon, CheckBox, useTheme, IconProps } from '@ui-kitten/components'; 
 import { auth, GoogleAuthProvider, googleClientId, firestore } from '../../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithCredential } from 'firebase/auth';
@@ -408,7 +408,11 @@ export default function LoginScreen() {
                 />
                 <Text style={GlobalStyles.rememberMeText}>Remember Me</Text>
               </View>
+              
+              {/* Forgot Password Button */}
+              <TouchableOpacity onPress={() => router.push('/ForgotPasswordScreen')}>
               <Text style={GlobalStyles.forgotPassword}>Forgot Password?</Text>
+              </TouchableOpacity>
             </View>
           )}
 
