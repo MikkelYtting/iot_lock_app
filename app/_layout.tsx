@@ -63,7 +63,9 @@ export default function RootLayout() {
           await new Promise((resolve) => setTimeout(resolve, 1000)); // Reduce delay for better UX
         }
       } catch (e) {
-        console.warn('Error loading theme preference:', e);
+        if (__DEV__) {
+          console.warn('Error loading theme preference:', e);
+        }
       } finally {
         setIsRootLayoutMounted(true); // New: Mark RootLayout as mounted
         setIsSplashVisible(false); // Hide splash after preparation
@@ -83,6 +85,11 @@ export default function RootLayout() {
         <SplashScreenComponent isRootLayoutMounted={isRootLayoutMounted} />
       </ApplicationProvider>
     );
+  }
+
+  // Log to check if the Slot is being rendered correctly
+  if (__DEV__) {
+    console.log("Rendering current route slot...");
   }
 
   // Render the application layout once the splash screen is hidden

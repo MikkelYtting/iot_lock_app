@@ -7,11 +7,18 @@ import LoadingScreen from './LoadingScreen';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [user, loading, error] = useAuthState(auth);
+
   const router = useRouter();
 
   useEffect(() => {
+    if (__DEV__) {
+      console.log('Auth state changed:', { user, loading, error });
+    }
+
     if (!loading && !user) {
-      // If user is not authenticated, redirect to the login screen
+      if (__DEV__) {
+        console.log('User is not authenticated, redirecting to login...');
+      }
       router.replace('/login/LoginScreen');
     }
   }, [loading, user, router]);
@@ -21,6 +28,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (error) {
+    if (__DEV__) {
+      console.error('Authentication error:', error);
+    }
     return (
       <View>
         <Text>Error: {error.message}</Text>

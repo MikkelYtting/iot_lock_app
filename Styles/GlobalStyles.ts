@@ -107,7 +107,7 @@ const GlobalStyles = StyleSheet.create({
     color: 'red', // Error text color is red
     textAlign: 'center', // Centers the error text horizontally
     marginBottom: 10, // Adds space below the error message
-    fontSize: width * 0.035, // Font size is 3.5% of the screen width, matching validation text size
+    fontSize: width * 0.02, // Font size is 3.5% of the screen width, matching validation text size
   },
   successText: {
     // Style for success messages, green and centered

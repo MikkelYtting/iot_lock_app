@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "arguslocks",  
+    "scheme": "arguslocks",
     "userInterfaceStyle": "automatic",
     "splash": {
       "resizeMode": "contain",
@@ -16,7 +16,7 @@
       "bundleIdentifier": "com.arguslocks.iotlock",
       "config": {
         "googleSignIn": {
-          "reservedClientId": "YOUR_IOS_REVERSED_CLIENT_ID" 
+          "reservedClientId": "156687663202-q89sii7djdm99e7usik0hvk26aj7te8t.apps.googleusercontent.com"  
         }
       }
     },
@@ -27,8 +27,8 @@
       },
       "config": {
         "googleSignIn": {
-          "apiKey": "YOUR_ANDROID_API_KEY",
-          "certificateHash": "YOUR_SHA1_CERTIFICATE" 
+          "apiKey": "AIzaSyAybXIZU4Oj7nHJeg7aO8wzlu-0r9jOSp0",  
+          "certificateHash": "ab:24:ee:8d:99:8e:26:14:75:55:df:bf:0f:e3:41:3f:d7:f6:2e:8d"  
         }
       }
     },
@@ -46,19 +46,19 @@
       "typedRoutes": true
     },
     "extra": {
-      "iosApiKey": "AIzaSyBFmCT4St2XV17f_GBpYwoMIwekz_-ga1A",
-      "androidApiKey": "AIzaSyAybXIZU4Oj7nHJeg7aO8wzlu-0r9jOSp0",
-      "webApiKey": "AIzaSyAO2pnfXOgZ-lnATqxc2sr3_JQ3K1sbA78",
-      "authDomain": "iot-lock-982b9.firebaseapp.com",
+      "iosApiKey": "AIzaSyBFmCT4St2XV17f_GBpYwoMIwekz_-ga1A",  
+      "androidApiKey": "AIzaSyAybXIZU4Oj7nHJeg7aO8wzlu-0r9jOSp0",  
+      "webApiKey": "AIzaSyAO2pnfXOgZ-lnATqxc2sr3_JQ3K1sbA78",  
+      "authDomain": "iot-lock-982b9.firebaseapp.com",  
       "projectId": "iot-lock-982b9",
       "storageBucket": "iot-lock-982b9.appspot.com",
       "messagingSenderId": "156687663202",
-      "iosAppId": "1:156687663202:ios:15c1f168720f2b5b8b513b",
-      "androidAppId": "1:156687663202:android:fc555b3c168c176e8b513b",
-      "webAppId": "1:156687663202:web:71119478367509078b513b",
-      "measurementId": "G-9L7J9YDTQ9",
+      "iosAppId": "1:156687663202:ios:15c1f168720f2b5b8b513b",  
+      "androidAppId": "1:156687663202:android:fc555b3c168c176e8b513b", 
+      "webAppId": "1:156687663202:web:71119478367509078b513b",  
+      "measurementId": "G-9L7J9YDTQ9",  
       "router": {
-        "origin": false
+        
       },
       "eas": {
         "projectId": "777776f8-afb4-447e-b262-660299c6928f"
