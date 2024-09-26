@@ -33,7 +33,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
     return (
       <View>
-        <Text>Error: {error.message}</Text>
+        <Text>Error: {error.message}</Text> {/* Wrap error message in <Text> */}
       </View>
     );
   }
