@@ -44,6 +44,9 @@ export default function RootLayout() {
   const toggleTheme = async () => {
     const newTheme = !isDarkMode;
     setIsDarkMode(newTheme);
+    if (__DEV__) {
+      console.log("Theme toggled:", newTheme ? "Dark" : "Light");
+    }
     // Save the theme preference in AsyncStorage
     await AsyncStorage.setItem('themePreference', newTheme ? 'dark' : 'light');
   };
@@ -52,14 +55,18 @@ export default function RootLayout() {
   useEffect(() => {
     const prepareApp = async () => {
       try {
+        if (__DEV__) console.log("Preparing app...");
+
         // Load the saved theme preference from AsyncStorage
         const savedTheme = await AsyncStorage.getItem('themePreference');
         if (savedTheme !== null) {
           setIsDarkMode(savedTheme === 'dark');
+          if (__DEV__) console.log("Loaded theme from AsyncStorage:", savedTheme);
         }
 
         if (__DEV__) {
           // Simulate a splash screen delay for development purposes
+          console.log("Simulating splash delay...");
           await new Promise((resolve) => setTimeout(resolve, 1000)); // Reduce delay for better UX
         }
       } catch (e) {
@@ -74,6 +81,7 @@ export default function RootLayout() {
     };
 
     if (loaded) {
+      if (__DEV__) console.log("Fonts loaded");
       prepareApp(); // Run the preparation logic once fonts are loaded
     }
   }, [loaded]);
