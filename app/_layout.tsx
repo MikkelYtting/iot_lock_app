@@ -6,58 +6,77 @@ import {
 import { useFonts } from 'expo-font';
 import { Slot } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState, createContext, useContext } from 'react';
+import React, { useEffect, useState, createContext, useContext } from 'react';
 import 'react-native-reanimated';
-import { ApplicationProvider, IconRegistry, Layout } from '@ui-kitten/components';
+import { ApplicationProvider, IconRegistry, Layout, Text } from '@ui-kitten/components';
 import * as eva from '@eva-design/eva';
 import { EvaIconsPack } from '@ui-kitten/eva-icons';
 import { customLightTheme } from '../themes/lightTheme';
 import { customDarkTheme } from '../themes/darkTheme';
 import SplashScreenComponent from './SplashScreen';
 import AuthGuard from '../components/AuthGuard';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Layout style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: 'red' }}>An error occurred: {this.state.error?.message}</Text>
+        </Layout>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Context for theme toggle
 const ThemeToggleContext = createContext({
   isDarkMode: false,
-  toggleTheme: () => {},
+  toggleTheme: () => { },
 });
 
-// Custom hook to use the theme toggle
 export const useThemeToggle = () => useContext(ThemeToggleContext);
 
-SplashScreen.preventAutoHideAsync(); // Prevent auto-hide of the splash screen
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode initially
-  const [isSplashVisible, setIsSplashVisible] = useState(true); // Controls splash visibility
-  const [isRootLayoutMounted, setIsRootLayoutMounted] = useState(false); // New: Track RootLayout mounting state
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isSplashVisible, setIsSplashVisible] = useState(true);
+  const [isRootLayoutMounted, setIsRootLayoutMounted] = useState(false);
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-  // Determine current theme based on `isDarkMode`
   const theme = isDarkMode ? customDarkTheme : customLightTheme;
   const navigationTheme = isDarkMode ? NavigationDarkTheme : NavigationDefaultTheme;
 
-  // Function to toggle the theme
   const toggleTheme = async () => {
     const newTheme = !isDarkMode;
     setIsDarkMode(newTheme);
     if (__DEV__) {
       console.log("Theme toggled:", newTheme ? "Dark" : "Light");
     }
-    // Save the theme preference in AsyncStorage
     await AsyncStorage.setItem('themePreference', newTheme ? 'dark' : 'light');
   };
 
-  // Load theme preference and handle splash screen logic
   useEffect(() => {
     const prepareApp = async () => {
       try {
         if (__DEV__) console.log("Preparing app...");
-
-        // Load the saved theme preference from AsyncStorage
         const savedTheme = await AsyncStorage.getItem('themePreference');
         if (savedTheme !== null) {
           setIsDarkMode(savedTheme === 'dark');
@@ -65,28 +84,54 @@ export default function RootLayout() {
         }
 
         if (__DEV__) {
-          // Simulate a splash screen delay for development purposes
           console.log("Simulating splash delay...");
-          await new Promise((resolve) => setTimeout(resolve, 1000)); // Reduce delay for better UX
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       } catch (e) {
         if (__DEV__) {
           console.warn('Error loading theme preference:', e);
         }
       } finally {
-        setIsRootLayoutMounted(true); // New: Mark RootLayout as mounted
-        setIsSplashVisible(false); // Hide splash after preparation
+        setIsRootLayoutMounted(true);
+        setIsSplashVisible(false);
         SplashScreen.hideAsync();
       }
     };
 
     if (loaded) {
       if (__DEV__) console.log("Fonts loaded");
-      prepareApp(); // Run the preparation logic once fonts are loaded
+      prepareApp();
     }
   }, [loaded]);
 
-  // If splash screen is still visible, show it
+  // Updated Debugging Function
+  const debugRenderSlot = (children: React.ReactNode) => {
+    return React.Children.map(children, (child, index) => {
+      if (__DEV__) {
+        if (child === null || child === undefined) {
+          console.warn(`Child at index ${index} is null or undefined.`);
+        } else if (typeof child === 'string') {
+          console.error(`Detected raw string child at index ${index}: "${child}".`);
+        } else if (React.isValidElement(child)) {
+          const type = child.type;
+          let typeName = "unknown";
+
+          // Safely access displayName or name only if type is an object
+          if (typeof type === 'object' && type !== null) {
+            typeName = (type as any).displayName || (type as any).name || "unknown";
+          } else if (typeof type === 'function') {
+            typeName = type.name || "unknown";
+          } else if (typeof type === 'string') {
+            typeName = type;
+          }
+
+          console.log(`Rendering child component of type: ${typeName} with key: ${child?.key}`);
+        }
+      }
+      return child;
+    });
+  };
+
   if (isSplashVisible) {
     return (
       <ApplicationProvider {...eva} theme={theme}>
@@ -95,26 +140,24 @@ export default function RootLayout() {
     );
   }
 
-  // Log to check if the Slot is being rendered correctly
   if (__DEV__) {
     console.log("Rendering current route slot...");
   }
 
-  // Render the application layout once the splash screen is hidden
   return (
-    <>
+    <ErrorBoundary>
       <IconRegistry icons={EvaIconsPack} />
       <ThemeToggleContext.Provider value={{ isDarkMode, toggleTheme }}>
         <ApplicationProvider {...eva} theme={theme}>
           <ThemeProvider value={navigationTheme}>
             <Layout style={{ flex: 1, backgroundColor: theme['background-basic-color-1'] }}>
               <AuthGuard>
-                <Slot /> {/* The routing slot will render the pages based on navigation */}
+                {debugRenderSlot(<Slot />)}
               </AuthGuard>
             </Layout>
           </ThemeProvider>
         </ApplicationProvider>
       </ThemeToggleContext.Provider>
-    </>
+    </ErrorBoundary>
   );
 }
