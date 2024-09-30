@@ -65,8 +65,8 @@ export default function LoginScreen() {
     };
 
     if (__DEV__) {
-      setEmail('test@example.com');
-      setPassword('password');
+      setEmail('Mytting1996@gmail.com');
+      setPassword('123456HH');
     }
 
     loadRememberedUser();
