@@ -54,7 +54,7 @@ const GlobalStyles = StyleSheet.create({
   },
   rememberMeText: {
     // Style for the "Remember Me" text
-    fontSize: width * 0.02, // Font size is 2% of the screen width
+    fontSize: width * 0.032, // Font size is 2% of the screen width
     color: '#fff', // White text color
     marginLeft: 5, // Adds a small gap between the checkbox and text
   },
@@ -62,7 +62,7 @@ const GlobalStyles = StyleSheet.create({
     // Style for the "Forgot Password" link, similar to the "Remember Me" text
     color: '#fff', // White text color
     textDecorationLine: 'underline', // Underlines the text to indicate a link
-    fontSize: width * 0.02, // Same font size as the "Remember Me" text for consistency
+    fontSize: width * 0.032, // Same font size as the "Remember Me" text for consistency
     marginRight: 5, // Adds a small margin to the right
   },
   loginButton: {
