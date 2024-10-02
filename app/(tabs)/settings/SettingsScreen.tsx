@@ -45,7 +45,7 @@ export default function SettingsScreen() {
 
       // Corrected path
     },
-    { title: 'Notifications', icon: 'bell-outline', notification: 3 },
+    { title: 'Notifications', icon: 'bell-outline' },
     { title: 'Privacy', icon: 'lock-outline' },
     { title: 'Help center', icon: 'question-mark-circle-outline' },
     { title: 'General', icon: 'settings-outline' },
