@@ -2,21 +2,21 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { useColorScheme, Dimensions } from 'react-native';
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
-import { useTheme } from '@ui-kitten/components'; // Added useTheme
+import { useTheme } from '@ui-kitten/components';
 
-const { width } = Dimensions.get('window'); // Get screen dimensions
+const { width } = Dimensions.get('window');
 
 export default function TabLayout() {
-  const theme = useTheme(); // Access the current theme
+  const theme = useTheme();
   const colorScheme = useColorScheme();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: theme['color-primary-500'], // Active tab color
-        tabBarInactiveTintColor: theme['text-basic-color'], // Inactive tab color
-        tabBarLabelStyle: { fontSize: 0.04 * width }, // Responsive font size for tabs
-        headerShown: false, // Hide the header globally for all tabs
+        tabBarActiveTintColor: theme['color-primary-500'],
+        tabBarInactiveTintColor: theme['text-basic-color'],
+        tabBarLabelStyle: { fontSize: 0.04 * width },
+        headerShown: false,
       }}
     >
       <Tabs.Screen
@@ -29,7 +29,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings/SettingsScreen"
+        name="settings"
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, focused }) => (

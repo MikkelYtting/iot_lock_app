@@ -2,6 +2,14 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Icon } from '@ui-kitten/components';
 
+// Move validatePassword outside of the component and export it
+export function validatePassword(password: string) {
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  return { hasMinLength, hasUppercase, hasNumber };
+}
+
 export function validateEmail(email: string) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
@@ -20,17 +28,11 @@ export default function FormValidation({
   isSigningUp: boolean;
   isFormSubmitted: boolean;
 }) {
-  // Helper function to check password strength
-  const validatePassword = (password: string) => {
-    const hasMinLength = password.length >= 8;
-    const hasUppercase = /[A-Z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    return { hasMinLength, hasUppercase, hasNumber };
-  };
+  // Use the exported validatePassword function
+  const passwordValidation = validatePassword(password);
 
   // Check if passwords match
   const passwordsMatch = password === confirmPassword;
-  const passwordValidation = validatePassword(password);
 
   const renderValidationIcon = (isValid: boolean) => (
     <Icon

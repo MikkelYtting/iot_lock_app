@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Dimensions, Switch, FlatList } from 'react-native';
-import { Layout, Text, Button, Icon } from '@ui-kitten/components';
+import { View, StyleSheet, Dimensions, Switch, FlatList, TouchableOpacity } from 'react-native';
+import { Layout, Text, Icon, Button } from '@ui-kitten/components';
 import { useThemeToggle } from '../../_layout';
 import { signOut } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,6 +13,7 @@ type SettingsItem = {
   title: string;
   icon: string;
   notification?: number;
+  onPress?: () => void; // Add an onPress property to handle navigation
 };
 
 export default function SettingsScreen() {
@@ -35,8 +36,15 @@ export default function SettingsScreen() {
     setIsEnabled((prevState) => !prevState);
   };
 
+  // Define settings items with the correct navigation paths
   const settingsItems: SettingsItem[] = [
-    { title: 'Account', icon: 'person-outline' },
+    { 
+      title: 'Account', 
+      icon: 'person-outline', 
+      onPress: () => router.push('/(tabs)/settings/AccountScreen')
+
+      // Corrected path
+    },
     { title: 'Notifications', icon: 'bell-outline', notification: 3 },
     { title: 'Privacy', icon: 'lock-outline' },
     { title: 'Help center', icon: 'question-mark-circle-outline' },
@@ -45,16 +53,18 @@ export default function SettingsScreen() {
   ];
 
   const renderSettingItem = ({ item }: { item: SettingsItem }) => (
-    <View style={styles.settingItem}>
-      <Icon name={item.icon} fill="#8F9BB3" style={styles.icon} />
-      <Text style={styles.settingTitle}>{item.title}</Text>
-      {item.notification && (
-        <View style={styles.notificationBadge}>
-          <Text style={styles.notificationText}>{item.notification}</Text>
-        </View>
-      )}
-      <Icon name="arrow-ios-forward" fill="#8F9BB3" style={styles.forwardIcon} />
-    </View>
+    <TouchableOpacity onPress={item.onPress}>
+      <View style={styles.settingItem}>
+        <Icon name={item.icon} fill="#8F9BB3" style={styles.icon} />
+        <Text style={styles.settingTitle}>{item.title}</Text>
+        {item.notification && (
+          <View style={styles.notificationBadge}>
+            <Text style={styles.notificationText}>{item.notification}</Text>
+          </View>
+        )}
+        <Icon name="arrow-ios-forward" fill="#8F9BB3" style={styles.forwardIcon} />
+      </View>
+    </TouchableOpacity>
   );
 
   return (
