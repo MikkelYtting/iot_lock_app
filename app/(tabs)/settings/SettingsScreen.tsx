@@ -69,7 +69,7 @@ export default function SettingsScreen() {
 
   return (
     <Layout style={styles.container}>
-      <Text category="h1" style={styles.title}>Settings</Text>
+      
       <FlatList<SettingsItem>
         data={settingsItems}
         keyExtractor={(item) => item.title}

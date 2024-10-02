@@ -3,8 +3,8 @@ import { StyleSheet, View, Alert, Dimensions } from 'react-native';
 import { Button, Input, Text, Layout } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
 import { updateProfile, reauthenticateWithCredential, EmailAuthProvider, updateEmail, sendEmailVerification } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, firestore } from '../../../firebase'; // Adjusted Path
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { validateEmail, validatePassword } from '../../../components/LoginScreenComponents/FormValidation'; // Correct Import Path
 
 const { width } = Dimensions.get('window');
@@ -19,23 +19,26 @@ export default function AccountScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
+    const user = auth.currentUser;
+    if (user) {
+      setName(user.displayName || '');
+      setEmail(user.email || '');
+    }
+
+    // Fetch user profile from Firestore
+    const fetchProfile = async () => {
       try {
-        const user = auth.currentUser;
-        if (user) {
-          const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setName(userData?.name || '');
-            setEmail(user.email || '');
-          }
+        const userDoc = await getDoc(doc(firestore, 'users', user?.uid || ''));
+        if (userDoc.exists()) {
+          setName(userDoc.data()?.name || '');
+          setEmail(userDoc.data()?.email || '');
         }
       } catch (error) {
-        console.log('Error fetching user profile:', error);
+        console.error('Error fetching user profile:', error);
       }
     };
 
-    fetchUserProfile();
+    if (user) fetchProfile();
   }, []);
 
   // Validate inputs before proceeding
@@ -60,18 +63,20 @@ export default function AccountScreen() {
     return isValid;
   };
 
-  // Update the user's name in both Firebase Auth and Firestore
+  // Update the user's name in both Auth and Firestore
   const handleNameChange = async () => {
     if (!validateInputs()) return;
 
     try {
       const user = auth.currentUser;
       if (user) {
-        // Update Firebase Auth displayName
         await updateProfile(user, { displayName: name });
 
-        // Store updated name in Firestore
-        await setDoc(doc(firestore, 'users', user.uid), { name }, { merge: true });
+        // Update the name in Firestore as well
+        await setDoc(doc(firestore, 'users', user.uid), {
+          name,
+          email: user.email,
+        });
 
         Alert.alert('Success', 'Name updated successfully.');
       }
@@ -81,7 +86,7 @@ export default function AccountScreen() {
     }
   };
 
-  // Update the user's email with verification and store in Firestore
+  // Handle the user's email update
   const handleEmailChange = async () => {
     if (!validateInputs()) return;
 
@@ -92,23 +97,14 @@ export default function AccountScreen() {
         const credential = EmailAuthProvider.credential(user.email!, password);
         await reauthenticateWithCredential(user, credential);
 
-        // Update the email in Firebase Auth
-        await updateEmail(user, newEmail);
-
-        // Update email in Firestore
-        await setDoc(doc(firestore, 'users', user.uid), { email: newEmail }, { merge: true });
-
-        setEmail(newEmail);
-        setNewEmail('');
-        setPassword('');
-        setIsEditing(false);
-
-        // Send verification email
+        // Send a verification email to the new address
         await sendEmailVerification(user);
         Alert.alert(
-          'Email Update',
-          'A confirmation email has been sent to your new address. Please verify it to complete the change.'
+          'Email Verification',
+          `A verification email has been sent to ${email}. Please verify the email before updating your account.`
         );
+
+        return;
       } else {
         Alert.alert('Error', 'Please enter a new email and your current password.');
       }
@@ -120,9 +116,7 @@ export default function AccountScreen() {
 
   return (
     <Layout style={styles.container}>
-      <Text category="h1" style={styles.title}>
-        Account Settings
-      </Text>
+     
       
       {/* Name Update Section */}
       <Text category="label" style={styles.label}>
@@ -187,11 +181,7 @@ export default function AccountScreen() {
           Edit Email
         </Button>
       )}
-
-      {/* Sign Out Button */}
-      <Button status="danger" onPress={() => router.replace('/login/LoginScreen')} style={styles.logoutButton}>
-        Sign Out
-      </Button>
+      
     </Layout>
   );
 }
