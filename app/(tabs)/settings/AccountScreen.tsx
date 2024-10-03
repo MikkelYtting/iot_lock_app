@@ -10,7 +10,7 @@ import {
   sendEmailVerification,
 } from 'firebase/auth';
 import { auth, firestore } from '../../../firebase';
-import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore'; // Import arrayUnion for maintaining email history
+import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { validateEmail, validatePassword } from '../../../components/LoginScreenComponents/FormValidation';
 
 const { width } = Dimensions.get('window');
@@ -23,6 +23,10 @@ export default function AccountScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [errors, setErrors] = useState({ name: '', newEmail: '', password: '' });
   const [emailVerified, setEmailVerified] = useState(true); // Track verification status only for email change
+  const [pin, setPin] = useState(''); // PIN code for current email verification
+  const [enteredPin, setEnteredPin] = useState(''); // User-entered PIN
+  const [isPinVerified, setIsPinVerified] = useState(false); // Track if the PIN has been verified
+  const [isPinSent, setIsPinSent] = useState(false); // Track if the PIN has been sent to the current email
   const router = useRouter();
 
   useEffect(() => {
@@ -32,7 +36,6 @@ export default function AccountScreen() {
       setEmail(user.email || '');
     }
 
-    // Fetch user profile from Firestore
     const fetchProfile = async () => {
       try {
         const userDoc = await getDoc(doc(firestore, 'users', user?.uid || ''));
@@ -48,24 +51,21 @@ export default function AccountScreen() {
 
     if (user) {
       fetchProfile();
-      refreshEmailVerificationStatus(); // Refresh email verification status
+      refreshEmailVerificationStatus();
     }
   }, []);
 
-  // Refresh email verification status from Firebase Auth
   const refreshEmailVerificationStatus = async () => {
     const user = auth.currentUser;
     if (user) {
-      await user.reload(); // Reload the user to get the latest email verification status
+      await user.reload();
       const isEmailVerified = user.emailVerified;
       setEmailVerified(isEmailVerified);
 
-      // Update Firestore with the latest verification status
       await updateDoc(doc(firestore, 'users', user.uid), { emailVerified: isEmailVerified });
     }
   };
 
-  // Validate inputs before proceeding
   const validateInputs = () => {
     let isValid = true;
     const newErrors = { name: '', newEmail: '', password: '' };
@@ -87,7 +87,6 @@ export default function AccountScreen() {
     return isValid;
   };
 
-  // Update the user's name in both Auth and Firestore
   const handleNameChange = async () => {
     if (!validateInputs()) return;
 
@@ -95,8 +94,6 @@ export default function AccountScreen() {
       const user = auth.currentUser;
       if (user) {
         await updateProfile(user, { displayName: name });
-
-        // Update the name in Firestore as well
         await setDoc(
           doc(firestore, 'users', user.uid),
           { name },
@@ -106,71 +103,71 @@ export default function AccountScreen() {
         Alert.alert('Success', 'Name updated successfully.');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      console.log('Error updating name:', errorMessage);
-      Alert.alert('Error', 'Failed to update name. Please try again.');
+      if (error instanceof Error) {
+        console.log('Error updating name:', error.message);
+        Alert.alert('Error', 'Failed to update name. Please try again.');
+      }
     }
   };
 
-  // Handle the user's email update and maintain email history
+  const sendVerificationPin = async () => {
+    const generatedPin = Math.floor(100000 + Math.random() * 900000).toString();
+    setPin(generatedPin);
+
+    Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your current email: ${email}`);
+    setIsPinSent(true);
+  };
+
+  const verifyPin = () => {
+    if (enteredPin === pin) {
+      setIsPinVerified(true);
+      Alert.alert('Success', 'PIN verified! You can now update your email.');
+    } else {
+      Alert.alert('Error', 'Invalid PIN. Please try again.');
+    }
+  };
+
   const handleEmailChange = async () => {
     if (!validateInputs()) return;
 
     try {
       const user = auth.currentUser;
-      if (user && newEmail) {
-        // Reauthenticate the user
+      if (user && newEmail && isPinVerified) {
         const credential = EmailAuthProvider.credential(user.email!, password);
         await reauthenticateWithCredential(user, credential);
 
-        // Update the email in Firebase Auth
         await updateEmail(user, newEmail);
+        await sendEmailVerification(user);
+        setEmailVerified(false);
 
-        // Reload the user object to get the updated emailVerified status
-        await user.reload();
-        const isEmailVerified = user.emailVerified; // Check if the new email is verified
-
-        // Update the email and verification status in Firestore
-        await updateDoc(
-          doc(firestore, 'users', user.uid), // Use `uid` as the document ID
-          {
-            email: newEmail, // Update the new email
-            emailVerified: isEmailVerified, // Set the updated emailVerified status
-            emailHistory: arrayUnion(user.email), // Add the current email to emailHistory array
-          }
+        Alert.alert(
+          'Success',
+          'Email updated! Please check your new email address to complete verification.'
         );
 
-        // Send a verification email to the new address (if not verified)
-        if (!isEmailVerified) {
-          await sendEmailVerification(user);
-          setEmailVerified(false);
-          Alert.alert(
-            'Email Update',
-            'A confirmation email has been sent to your new address. Please verify it to complete the change.'
-          );
-        } else {
-          setEmailVerified(true);
-          Alert.alert('Email Update', 'Email updated and already verified.');
-        }
+        await updateDoc(doc(firestore, 'users', user.uid), {
+          email: newEmail,
+          emailVerified: false,
+          emailHistory: arrayUnion(email),
+        });
 
-        // Reset the form after update
         setEmail(newEmail);
         setNewEmail('');
         setPassword('');
         setIsEditing(false);
+        setIsPinVerified(false);
       } else {
-        Alert.alert('Error', 'Please enter a new email and your current password.');
+        Alert.alert('Error', 'PIN verification is required before changing your email.');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      console.log('Error updating email:', errorMessage);
-      Alert.alert('Error', `Failed to update email. ${errorMessage}`);
+      if (error instanceof Error) {
+        Alert.alert('Error', `Failed to update email. ${error.message}`);
+      }
     }
   };
 
   return (
     <Layout style={styles.container}>
-      {/* Email Verification Warning */}
       {!emailVerified && (
         <View style={styles.banner}>
           <Text style={styles.bannerText}>
@@ -179,7 +176,6 @@ export default function AccountScreen() {
         </View>
       )}
 
-      {/* Name Update Section */}
       <Text category="label" style={styles.label}>
         Change Name
       </Text>
@@ -198,7 +194,6 @@ export default function AccountScreen() {
         Update Name
       </Button>
 
-      {/* Email Update Section */}
       <Text category="label" style={styles.label}>
         Change Email
       </Text>
@@ -229,6 +224,25 @@ export default function AccountScreen() {
             status={errors.password ? 'danger' : 'basic'}
             caption={errors.password}
           />
+
+          {!isPinSent ? (
+            <Button status="primary" onPress={sendVerificationPin} style={styles.button}>
+              Send PIN to Current Email
+            </Button>
+          ) : (
+            <>
+              <Input
+                placeholder="Enter PIN"
+                value={enteredPin}
+                onChangeText={setEnteredPin}
+                style={styles.input}
+              />
+              <Button status="info" onPress={verifyPin} style={styles.button}>
+                Verify PIN
+              </Button>
+            </>
+          )}
+
           <Button status="primary" onPress={handleEmailChange} style={styles.button}>
             Confirm Email Change
           </Button>
