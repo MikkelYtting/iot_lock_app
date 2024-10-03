@@ -2,10 +2,10 @@ import FormValidation from '../../components/LoginScreenComponents/FormValidatio
 import { validateEmail } from '../../components/LoginScreenComponents/FormValidation'; 
 import GlobalStyles from '../../Styles/GlobalStyles';  
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TouchableWithoutFeedback, Animated, Platform, TouchableOpacity } from 'react-native';
+import { View, TouchableWithoutFeedback, Animated, Platform, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Text, Input, Button, Icon, CheckBox, useTheme, IconProps } from '@ui-kitten/components'; 
 import { auth, GoogleAuthProvider, googleClientId, firestore } from '../../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithCredential } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithCredential, sendEmailVerification } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useThemeToggle } from '../_layout';
@@ -33,6 +33,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(true); // Track email verification status
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -123,6 +124,15 @@ export default function LoginScreen() {
       await simulateDelay();
 
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Check email verification status
+      if (!user.emailVerified) {
+        setEmailVerified(false);
+        Alert.alert('Verification Required', 'Please verify your email before logging in.');
+        return;
+      }
+
       if (rememberMe) {
         await AsyncStorage.setItem('rememberedUser', JSON.stringify({ email, password }));
       } else {
@@ -232,9 +242,12 @@ export default function LoginScreen() {
       await setDoc(doc(firestore, 'users', user.uid), {
         name,
         email: user.email,
+        emailVerified: false, // Store initial email verification status
       });
 
-      router.replace('/(tabs)/home/HomeScreen');
+      // Send verification email
+      await sendEmailVerification(user);
+      Alert.alert('Signup Successful', 'A verification link has been sent to your email. Please verify before logging in.');
 
       setEmail('');  
       setPassword('');
@@ -262,13 +275,13 @@ export default function LoginScreen() {
   );
 
   const preventCopyPaste = {
-    onPaste: (e: any) => e.preventDefault(),
-    onCopy: (e: any) => e.preventDefault(),
+    onPaste: (e: React.ClipboardEvent) => e.preventDefault(),
+    onCopy: (e: React.ClipboardEvent) => e.preventDefault(),
   };
 
   const handleModeSwitch = () => {
     setIsSigningUp(!isSigningUp);
-    setError(''); 
+    setError('');
   };
 
   if (loading && showLoader) {
@@ -277,17 +290,17 @@ export default function LoginScreen() {
 
   const animatedBorderColor = borderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#ff0000', '#ffffff'], 
+    outputRange: ['#ff0000', '#ffffff'],
   });
 
   const animatedPasswordBorderColor = passwordBorderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#ff0000', '#ffffff'], 
+    outputRange: ['#ff0000', '#ffffff'],
   });
 
   const animatedConfirmPasswordBorderColor = confirmPasswordBorderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#ff0000', '#ffffff'], 
+    outputRange: ['#ff0000', '#ffffff'],
   });
 
   return (
@@ -300,6 +313,25 @@ export default function LoginScreen() {
           <Text category="s1" appearance="hint" style={GlobalStyles.subtitle}>
             {isSigningUp ? 'Enter your details to create an account' : 'Enter your login information'}
           </Text>
+
+          {!emailVerified && (
+            <View style={styles.banner}>
+              <Text style={styles.bannerText}>
+                Your email is not verified. Please check your inbox and verify your email.
+              </Text>
+              <Button
+                appearance="ghost"
+                onPress={async () => {
+                  if (auth.currentUser) {
+                    await sendEmailVerification(auth.currentUser);
+                    Alert.alert('Verification Email Sent', 'Please check your inbox.');
+                  }
+                }}
+              >
+                Resend Verification Email
+              </Button>
+            </View>
+          )}
 
           {isSigningUp && (
             <>
@@ -442,3 +474,16 @@ export default function LoginScreen() {
     </LinearGradient>
   );
 }
+
+const styles = StyleSheet.create({
+  banner: {
+    backgroundColor: '#FFEB3B',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 15,
+  },
+  bannerText: {
+    color: '#000',
+    textAlign: 'center',
+  },
+});

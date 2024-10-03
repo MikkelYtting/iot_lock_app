@@ -2,10 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Alert, Dimensions } from 'react-native';
 import { Button, Input, Text, Layout } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
-import { updateProfile, reauthenticateWithCredential, EmailAuthProvider, updateEmail, sendEmailVerification } from 'firebase/auth';
-import { auth, firestore } from '../../../firebase'; // Adjusted Path
+import {
+  updateProfile,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  updateEmail,
+  sendEmailVerification,
+} from 'firebase/auth';
+import { auth, firestore } from '../../../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { validateEmail, validatePassword } from '../../../components/LoginScreenComponents/FormValidation'; // Correct Import Path
+import { validateEmail, validatePassword } from '../../../components/LoginScreenComponents/FormValidation';
 
 const { width } = Dimensions.get('window');
 
@@ -16,6 +22,7 @@ export default function AccountScreen() {
   const [password, setPassword] = useState(''); // Required for reauthentication
   const [isEditing, setIsEditing] = useState(false);
   const [errors, setErrors] = useState({ name: '', newEmail: '', password: '' });
+  const [emailVerified, setEmailVerified] = useState(true); // Track verification status only for email change
   const router = useRouter();
 
   useEffect(() => {
@@ -73,15 +80,17 @@ export default function AccountScreen() {
         await updateProfile(user, { displayName: name });
 
         // Update the name in Firestore as well
-        await setDoc(doc(firestore, 'users', user.uid), {
-          name,
-          email: user.email,
-        });
+        await setDoc(
+          doc(firestore, 'users', user.uid),
+          { name },
+          { merge: true }
+        );
 
         Alert.alert('Success', 'Name updated successfully.');
       }
     } catch (error) {
-      console.log('Error updating name:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      console.log('Error updating name:', errorMessage);
       Alert.alert('Error', 'Failed to update name. Please try again.');
     }
   };
@@ -97,27 +106,51 @@ export default function AccountScreen() {
         const credential = EmailAuthProvider.credential(user.email!, password);
         await reauthenticateWithCredential(user, credential);
 
-        // Send a verification email to the new address
-        await sendEmailVerification(user);
-        Alert.alert(
-          'Email Verification',
-          `A verification email has been sent to ${email}. Please verify the email before updating your account.`
+        // Update the email in Firebase Auth
+        await updateEmail(user, newEmail);
+
+        // Update the email in Firestore
+        await setDoc(
+          doc(firestore, 'users', user.uid),
+          { email: newEmail, emailVerified: false },
+          { merge: true }
         );
 
-        return;
+        // Send a verification email to the new address
+        await sendEmailVerification(user);
+        setEmailVerified(false);
+
+        Alert.alert(
+          'Email Update',
+          'A confirmation email has been sent to your new address. Please verify it to complete the change.'
+        );
+
+        // Reset the form after update
+        setEmail(newEmail);
+        setNewEmail('');
+        setPassword('');
+        setIsEditing(false);
       } else {
         Alert.alert('Error', 'Please enter a new email and your current password.');
       }
     } catch (error) {
-      console.log('Error updating email:', error);
-      Alert.alert('Error', 'Failed to update email. Please ensure your password is correct.');
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      console.log('Error updating email:', errorMessage);
+      Alert.alert('Error', `Failed to update email. ${errorMessage}`);
     }
   };
 
   return (
     <Layout style={styles.container}>
-     
-      
+      {/* Show email verification only after email change */}
+      {!emailVerified && (
+        <View style={styles.banner}>
+          <Text style={styles.bannerText}>
+            Your new email is not verified. Please check your inbox to complete the verification.
+          </Text>
+        </View>
+      )}
+
       {/* Name Update Section */}
       <Text category="label" style={styles.label}>
         Change Name
@@ -141,12 +174,7 @@ export default function AccountScreen() {
       <Text category="label" style={styles.label}>
         Change Email
       </Text>
-      <Input
-        placeholder="Current Email"
-        value={email}
-        disabled
-        style={styles.input}
-      />
+      <Input placeholder="Current Email" value={email} disabled style={styles.input} />
       {isEditing ? (
         <>
           <Input
@@ -181,7 +209,6 @@ export default function AccountScreen() {
           Edit Email
         </Button>
       )}
-      
     </Layout>
   );
 }
@@ -191,10 +218,15 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  title: {
+  banner: {
+    backgroundColor: '#FFEB3B',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 15,
+  },
+  bannerText: {
+    color: '#000',
     textAlign: 'center',
-    marginBottom: 20,
-    fontSize: 24,
   },
   label: {
     marginBottom: 5,
@@ -207,8 +239,5 @@ const styles = StyleSheet.create({
   },
   button: {
     marginVertical: 10,
-  },
-  logoutButton: {
-    marginVertical: 20,
   },
 });
