@@ -10,7 +10,7 @@ import {
   sendEmailVerification,
 } from 'firebase/auth';
 import { auth, firestore } from '../../../firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore'; // Import arrayUnion for maintaining email history
 import { validateEmail, validatePassword } from '../../../components/LoginScreenComponents/FormValidation';
 
 const { width } = Dimensions.get('window');
@@ -39,14 +39,31 @@ export default function AccountScreen() {
         if (userDoc.exists()) {
           setName(userDoc.data()?.name || '');
           setEmail(userDoc.data()?.email || '');
+          setEmailVerified(userDoc.data()?.emailVerified || false);
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
       }
     };
 
-    if (user) fetchProfile();
+    if (user) {
+      fetchProfile();
+      refreshEmailVerificationStatus(); // Refresh email verification status
+    }
   }, []);
+
+  // Refresh email verification status from Firebase Auth
+  const refreshEmailVerificationStatus = async () => {
+    const user = auth.currentUser;
+    if (user) {
+      await user.reload(); // Reload the user to get the latest email verification status
+      const isEmailVerified = user.emailVerified;
+      setEmailVerified(isEmailVerified);
+
+      // Update Firestore with the latest verification status
+      await updateDoc(doc(firestore, 'users', user.uid), { emailVerified: isEmailVerified });
+    }
+  };
 
   // Validate inputs before proceeding
   const validateInputs = () => {
@@ -95,7 +112,7 @@ export default function AccountScreen() {
     }
   };
 
-  // Handle the user's email update
+  // Handle the user's email update and maintain email history
   const handleEmailChange = async () => {
     if (!validateInputs()) return;
 
@@ -109,21 +126,32 @@ export default function AccountScreen() {
         // Update the email in Firebase Auth
         await updateEmail(user, newEmail);
 
-        // Update the email in Firestore
-        await setDoc(
-          doc(firestore, 'users', user.uid),
-          { email: newEmail, emailVerified: false },
-          { merge: true }
+        // Reload the user object to get the updated emailVerified status
+        await user.reload();
+        const isEmailVerified = user.emailVerified; // Check if the new email is verified
+
+        // Update the email and verification status in Firestore
+        await updateDoc(
+          doc(firestore, 'users', user.uid), // Use `uid` as the document ID
+          {
+            email: newEmail, // Update the new email
+            emailVerified: isEmailVerified, // Set the updated emailVerified status
+            emailHistory: arrayUnion(user.email), // Add the current email to emailHistory array
+          }
         );
 
-        // Send a verification email to the new address
-        await sendEmailVerification(user);
-        setEmailVerified(false);
-
-        Alert.alert(
-          'Email Update',
-          'A confirmation email has been sent to your new address. Please verify it to complete the change.'
-        );
+        // Send a verification email to the new address (if not verified)
+        if (!isEmailVerified) {
+          await sendEmailVerification(user);
+          setEmailVerified(false);
+          Alert.alert(
+            'Email Update',
+            'A confirmation email has been sent to your new address. Please verify it to complete the change.'
+          );
+        } else {
+          setEmailVerified(true);
+          Alert.alert('Email Update', 'Email updated and already verified.');
+        }
 
         // Reset the form after update
         setEmail(newEmail);
@@ -142,11 +170,11 @@ export default function AccountScreen() {
 
   return (
     <Layout style={styles.container}>
-      {/* Show email verification only after email change */}
+      {/* Email Verification Warning */}
       {!emailVerified && (
         <View style={styles.banner}>
           <Text style={styles.bannerText}>
-            Your new email is not verified. Please check your inbox to complete the verification.
+            Your email is not verified. Please check your inbox to complete the verification.
           </Text>
         </View>
       )}
@@ -175,6 +203,7 @@ export default function AccountScreen() {
         Change Email
       </Text>
       <Input placeholder="Current Email" value={email} disabled style={styles.input} />
+
       {isEditing ? (
         <>
           <Input
