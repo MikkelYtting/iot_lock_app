@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "8a4ebc3d-39c6-4b61-8786-a0dfe86d8666"
+      }
+    },
+    "android": {
+      "package": "com.arguslocks.iotlock"
+    }
+  }
+}
