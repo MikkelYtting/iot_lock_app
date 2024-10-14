@@ -17,7 +17,7 @@ sendGridMail.setApiKey(SENDGRID_API_KEY); // Correct method call
 export const sendEmail = functions
   .region('europe-west1')  // Set region to Europe for v1
   .runWith({ timeoutSeconds: 300, memory: '512MB' })
-  .https.onRequest(async (req: Request, res: Response) => {
+  .https.onRequest(async (req: Request, res: Response): Promise<void> => { // Ensure function returns Promise<void>
     try {
       const msg = {
         to: req.query.to as string,
@@ -40,7 +40,7 @@ export const sendEmail = functions
 export const futureFunction = functions
   .region('us-central1') // Set region to US for v2
   .runWith({ timeoutSeconds: 300, memory: '512MB' })
-  .https.onRequest(async (req: Request, res: Response) => {
+  .https.onRequest(async (req: Request, res: Response): Promise<void> => { // Ensure function returns Promise<void>
     try {
       // Your future v2 function logic
       res.status(200).send("Future function executed successfully.");

@@ -111,11 +111,18 @@ export default function AccountScreen() {
   };
 
   const sendVerificationPin = async () => {
-    const generatedPin = Math.floor(100000 + Math.random() * 900000).toString();
+    const generatedPin = Math.floor(1000 + Math.random() * 9000).toString(); // Ensure it's a 4-digit PIN
     setPin(generatedPin);
 
-    Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your current email: ${email}`);
-    setIsPinSent(true);
+    try {
+      const emailResponse = await fetch(`https://europe-west1-iot-982b9.cloudfunctions.net/sendEmail?to=${email}&pin=${generatedPin}`);
+      const responseJson = await emailResponse.json();
+      console.log(responseJson); // Log the response
+      Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your current email: ${email}`);
+      setIsPinSent(true);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send PIN. Please try again.');
+    }
   };
 
   const verifyPin = () => {
