@@ -13,39 +13,58 @@ const SENDGRID_API_KEY = functions.config().sendgrid.key;
 // Properly configure SendGrid
 sendGridMail.setApiKey(SENDGRID_API_KEY); // Correct method call
 
-// --------------------- v1 function (email sending) -------------------------
+// --------------------- v1 function (email sending with PIN generation) -------------------------
 export const sendEmail = functions
   .region('europe-west1')  // Set region to Europe for v1
   .runWith({ timeoutSeconds: 300, memory: '512MB' })
-  .https.onRequest(async (req: Request, res: Response): Promise<void> => { // Ensure function returns Promise<void>
-    try {
-      const msg = {
-        to: req.query.to as string,
-        from: "Arguslocks@gmail.com", // Sender's email
-        subject: "Verification Email",
-        text: "Please verify your email.",
-        html: "<strong>Please verify your email.</strong>",
-      };
+  .https.onRequest(async (req: Request, res: Response) => {
+    logger.info('Received request to send email', { query: req.query }); // Log the incoming request
 
-      // Send the email using SendGrid
-      await sendGridMail.send(msg);
-      res.status(200).send("Email sent successfully.");
+    // Validate query parameters
+    const recipientEmail = req.query.to as string;
+    if (!recipientEmail) {
+      logger.error('Missing recipient email'); // Log missing parameters
+      res.status(400).send('Missing recipient email.'); // Respond with 400 status
+      return; // Ensure we exit the function here
+    }
+
+    // Generate a 5-digit PIN
+    const pin = Math.floor(10000 + Math.random() * 90000).toString(); // 5-digit PIN
+    logger.info(`Generated PIN: ${pin}`, { recipientEmail }); // Log the generated PIN
+
+    // Store the PIN in Firestore with a timestamp
+    const userDocRef = admin.firestore().collection('pins').doc(recipientEmail);
+    const createdAt = admin.firestore.FieldValue.serverTimestamp();
+    try {
+      await userDocRef.set({
+        pin,
+        createdAt,
+        requestCount: admin.firestore.FieldValue.increment(1), // Increment request count
+      });
+      logger.info(`Stored PIN for ${recipientEmail} in Firestore`); // Log Firestore action
+    } catch (firestoreError) {
+      logger.error("Error storing PIN in Firestore:", firestoreError); // Log Firestore error
+      res.status(500).send("Failed to store PIN in Firestore."); // Respond with error
+      return; // Exit on error
+    }
+
+    // Send the email with the PIN
+    const msg = {
+      to: recipientEmail,
+      from: "Arguslocks@gmail.com", // Sender's email
+      subject: "Your Verification PIN",
+      text: `Your verification PIN is: ${pin}`,
+      html: `<strong>Your verification PIN is: ${pin}</strong>`,
+    };
+
+    try {
+      logger.info('Sending email', { msg }); // Log email details
+      await sendGridMail.send(msg); // Send the email using SendGrid
+      logger.info('Email sent successfully', { recipientEmail }); // Log success
+      res.status(200).send("Email sent successfully."); // Send success response
     } catch (error) {
-      logger.error("Error sending email:", error);
-      res.status(500).send("Failed to send email.");
+      logger.error("Error sending email:", error); // Log SendGrid error
+      res.status(500).send("Failed to send email."); // Send failure response
     }
   });
 
-// --------------------- v2 function (future functionality) ------------------
-export const futureFunction = functions
-  .region('us-central1') // Set region to US for v2
-  .runWith({ timeoutSeconds: 300, memory: '512MB' })
-  .https.onRequest(async (req: Request, res: Response): Promise<void> => { // Ensure function returns Promise<void>
-    try {
-      // Your future v2 function logic
-      res.status(200).send("Future function executed successfully.");
-    } catch (error) {
-      logger.error("Error in future function:", error);
-      res.status(500).send("Failed to execute future function.");
-    }
-  });

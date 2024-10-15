@@ -10,7 +10,7 @@ import {
   sendEmailVerification,
 } from 'firebase/auth';
 import { auth, firestore } from '../../../firebase';
-import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { validateEmail, validatePassword } from '../../../components/LoginScreenComponents/FormValidation';
 
 const { width } = Dimensions.get('window');
@@ -113,9 +113,20 @@ export default function AccountScreen() {
   const sendVerificationPin = async () => {
     const generatedPin = Math.floor(1000 + Math.random() * 9000).toString(); // Ensure it's a 4-digit PIN
     setPin(generatedPin);
+    const user = auth.currentUser;
 
     try {
-      const emailResponse = await fetch(`https://europe-west1-iot-982b9.cloudfunctions.net/sendEmail?to=${email}&pin=${generatedPin}`);
+      // Store the PIN in Firestore under a separate collection, linked to the user ID
+      const pinDocRef = doc(firestore, 'pins', user?.uid || ''); // Store by user UID
+      await setDoc(pinDocRef, {
+        pin: generatedPin,
+        createdAt: new Date(), // Store the current timestamp for TTL
+      });
+
+      // Send the PIN via email
+      const emailResponse = await fetch(
+        `https://europe-west1-iot-982b9.cloudfunctions.net/sendEmail?to=${email}&pin=${generatedPin}`
+      );
       const responseJson = await emailResponse.json();
       console.log(responseJson); // Log the response
       Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your current email: ${email}`);
@@ -125,12 +136,43 @@ export default function AccountScreen() {
     }
   };
 
-  const verifyPin = () => {
-    if (enteredPin === pin) {
-      setIsPinVerified(true);
-      Alert.alert('Success', 'PIN verified! You can now update your email.');
-    } else {
-      Alert.alert('Error', 'Invalid PIN. Please try again.');
+  const verifyPin = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+      // Fetch the stored PIN from Firestore
+      const pinDocRef = doc(firestore, 'pins', user.uid);
+      const pinDoc = await getDoc(pinDocRef);
+
+      if (!pinDoc.exists()) {
+        Alert.alert('Error', 'No PIN found. Please request a new PIN.');
+        return;
+      }
+
+      const { pin: storedPin, createdAt } = pinDoc.data();
+      const now = new Date();
+      const createdAtDate = createdAt.toDate(); // Convert Firestore timestamp to JS Date
+
+      // Check if the stored PIN is within 1 minute of creation
+      const timeDiff = now.getTime() - createdAtDate.getTime();
+      const oneMinute = 60 * 1000;
+
+      if (enteredPin === storedPin && timeDiff <= oneMinute) {
+        setIsPinVerified(true);
+        Alert.alert('Success', 'PIN verified! You can now update your email.');
+
+        // Optionally delete the PIN after verification
+        await deleteDoc(pinDocRef);
+      } else if (timeDiff > oneMinute) {
+        Alert.alert('Error', 'PIN has expired. Please request a new PIN.');
+        await deleteDoc(pinDocRef); // Delete expired PIN
+      } else {
+        Alert.alert('Error', 'Invalid PIN. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error verifying PIN:', error);
+      Alert.alert('Error', 'Failed to verify PIN. Please try again.');
     }
   };
 

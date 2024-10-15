@@ -2,14 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { Layout, Icon } from '@ui-kitten/components';
 import Clipboard from '@react-native-clipboard/clipboard';
+import { doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { firestore } from '../../../firebase';  // Adjust path to your firebase setup
 
 const { width } = Dimensions.get('window');
 
-export default function PinVerificationScreen() {
+// Define the type for the 'onVerify' function prop
+interface PinVerificationScreenProps {
+  onVerify: () => void; // Assuming 'onVerify' does not take any arguments and returns void
+}
+
+export default function PinVerificationScreen({ onVerify }: PinVerificationScreenProps) {
   const [pin, setPin] = useState(''); // Store the entered PIN
-  const [otp, setOtp] = useState(''); // Store OTP if required
-  const pinLength = 4; // Define the length of the PIN
+  const pinLength = 5; // Define the length of the PIN (5 digits)
+  const [attempts, setAttempts] = useState(0); // Track the number of attempts
   const [errorMessage, setErrorMessage] = useState(''); // Error message for invalid PIN entry
+  const maxAttempts = 10; // Max number of attempts
 
   useEffect(() => {
     // Check clipboard content for valid PIN on mount
@@ -23,7 +31,7 @@ export default function PinVerificationScreen() {
             { text: 'No' },
             {
               text: 'Yes',
-              onPress: () => setPin(clipboardContent.slice(0, pinLength)), // Use first 4 digits if more
+              onPress: () => setPin(clipboardContent.slice(0, pinLength)), // Use first 4-5 digits if more
             },
           ]
         );
@@ -35,22 +43,44 @@ export default function PinVerificationScreen() {
 
   // Handle digit press
   const handleDigitPress = (digit: string) => {
-    if (pin.length < pinLength) {
+    if (pin.length < pinLength && attempts < maxAttempts) {
       setPin((prev) => prev + digit); // Append the digit to the existing PIN
     }
   };
 
   // Handle backspace/delete
   const handleBackspace = () => {
-    setPin((prev) => prev.slice(0, -1)); // Remove the last digit from the PIN
+    if (attempts < maxAttempts) {
+      setPin((prev) => prev.slice(0, -1)); // Remove the last digit from the PIN
+    }
   };
 
-  // Submit the PIN (for demonstration)
-  const submitPin = () => {
-    if (pin.length === pinLength) {
-      Alert.alert('Success', `Your PIN has been successfully verified: ${pin}`);
+  // Submit the PIN
+  const submitPin = async () => {
+    if (pin.length === pinLength && attempts < maxAttempts) {
+      // Fetch the stored PIN from Firestore
+      const userDocRef = doc(firestore, 'pins', 'user-email@example.com'); // Replace with actual email/userId
+      const pinDoc = await getDoc(userDocRef);
+
+      if (pinDoc.exists()) {
+        const storedPin = pinDoc.data().pin;
+
+        if (storedPin === pin) {
+          Alert.alert('Success', 'PIN Verified Successfully!');
+          await deleteDoc(userDocRef); // Optionally delete the PIN after successful verification
+          onVerify(); // Call the 'onVerify' prop after verification
+        } else {
+          setAttempts(attempts + 1); // Increment attempt counter
+          setErrorMessage(`Incorrect PIN. Attempts remaining: ${maxAttempts - attempts - 1}`);
+          if (attempts + 1 >= maxAttempts) {
+            Alert.alert('Error', 'Too many incorrect attempts. Please try again later.');
+          }
+        }
+      } else {
+        Alert.alert('Error', 'No PIN found.');
+      }
     } else {
-      setErrorMessage('Please enter a 4-digit PIN.');
+      setErrorMessage('Please enter the full 5-digit PIN.');
     }
   };
 
@@ -68,15 +98,12 @@ export default function PinVerificationScreen() {
               { borderColor: index < pin.length ? 'red' : 'gray' }, // Change color if digit is entered
             ]}
           >
-            {/* Display filled circle if digit is entered */}
             {index < pin.length ? <View style={styles.filledCircle} /> : null}
           </View>
         ))}
       </View>
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
-
-      <Text style={styles.forgotPin}>Forgot PIN</Text>
 
       {/* Custom Numeric Keypad */}
       <View style={styles.keypadContainer}>
@@ -85,6 +112,7 @@ export default function PinVerificationScreen() {
             key={index}
             style={styles.keypadButton}
             onPress={() => handleDigitPress(digit)}
+            disabled={attempts >= maxAttempts} // Disable buttons after max attempts
           >
             <Text style={styles.keypadText}>{digit}</Text>
           </TouchableOpacity>
@@ -92,17 +120,21 @@ export default function PinVerificationScreen() {
         {/* Empty Space */}
         <View style={[styles.keypadButton, { backgroundColor: 'transparent' }]} />
         {/* '0' Button */}
-        <TouchableOpacity style={styles.keypadButton} onPress={() => handleDigitPress('0')}>
+        <TouchableOpacity style={styles.keypadButton} onPress={() => handleDigitPress('0')} disabled={attempts >= maxAttempts}>
           <Text style={styles.keypadText}>0</Text>
         </TouchableOpacity>
         {/* Backspace Button */}
-        <TouchableOpacity style={styles.keypadButton} onPress={handleBackspace}>
+        <TouchableOpacity style={styles.keypadButton} onPress={handleBackspace} disabled={attempts >= maxAttempts}>
           <Icon name="backspace-outline" pack="eva" style={styles.iconStyle} />
         </TouchableOpacity>
       </View>
 
       {/* Submit PIN Button */}
-      <TouchableOpacity style={styles.submitButton} onPress={submitPin}>
+      <TouchableOpacity
+        style={styles.submitButton}
+        onPress={submitPin}
+        disabled={attempts >= maxAttempts} // Disable submission after max attempts
+      >
         <Text style={styles.submitButtonText}>Submit PIN</Text>
       </TouchableOpacity>
     </Layout>
@@ -143,12 +175,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: 'red',
-  },
-  forgotPin: {
-    color: '#ff4d4d',
-    fontSize: 16,
-    textDecorationLine: 'underline',
-    marginBottom: 30,
   },
   keypadContainer: {
     flexDirection: 'row',
