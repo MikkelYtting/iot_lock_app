@@ -32,6 +32,7 @@ export default function AccountScreen() {
   useEffect(() => {
     const user = auth.currentUser;
     if (user) {
+      console.log('Fetching user profile...');
       setName(user.displayName || '');
       setEmail(user.email || '');
     }
@@ -40,6 +41,7 @@ export default function AccountScreen() {
       try {
         const userDoc = await getDoc(doc(firestore, 'users', user?.uid || ''));
         if (userDoc.exists()) {
+          console.log('User profile found:', userDoc.data());
           setName(userDoc.data()?.name || '');
           setEmail(userDoc.data()?.email || '');
           setEmailVerified(userDoc.data()?.emailVerified || false);
@@ -58,11 +60,16 @@ export default function AccountScreen() {
   const refreshEmailVerificationStatus = async () => {
     const user = auth.currentUser;
     if (user) {
-      await user.reload();
-      const isEmailVerified = user.emailVerified;
-      setEmailVerified(isEmailVerified);
+      try {
+        await user.reload();
+        const isEmailVerified = user.emailVerified;
+        setEmailVerified(isEmailVerified);
+        console.log('Email verification status:', isEmailVerified);
 
-      await updateDoc(doc(firestore, 'users', user.uid), { emailVerified: isEmailVerified });
+        await updateDoc(doc(firestore, 'users', user.uid), { emailVerified: isEmailVerified });
+      } catch (error) {
+        console.error('Error refreshing email verification status:', error);
+      }
     }
   };
 
@@ -101,6 +108,7 @@ export default function AccountScreen() {
         );
 
         Alert.alert('Success', 'Name updated successfully.');
+        console.log('Name updated successfully for user:', user.uid);
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -111,10 +119,10 @@ export default function AccountScreen() {
   };
 
   const sendVerificationPin = async () => {
-    const generatedPin = Math.floor(1000 + Math.random() * 9000).toString(); // Ensure it's a 4-digit PIN
+    const generatedPin = Math.floor(10000 + Math.random() * 90000).toString(); // Generate a 5-digit PIN
     setPin(generatedPin);
     const user = auth.currentUser;
-
+  
     try {
       // Store the PIN in Firestore under a separate collection, linked to the user ID
       const pinDocRef = doc(firestore, 'pins', user?.uid || ''); // Store by user UID
@@ -122,30 +130,43 @@ export default function AccountScreen() {
         pin: generatedPin,
         createdAt: new Date(), // Store the current timestamp for TTL
       });
-
+      console.log(`Stored PIN in Firestore for user: ${user?.uid}`);
+  
       // Send the PIN via email
       const emailResponse = await fetch(
         `https://europe-west1-iot-982b9.cloudfunctions.net/sendEmail?to=${email}&pin=${generatedPin}`
       );
-      const responseJson = await emailResponse.json();
-      console.log(responseJson); // Log the response
-      Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your current email: ${email}`);
-      setIsPinSent(true);
+  
+      // Check for success or failure based on status code
+      if (emailResponse.ok) {
+        console.log(`Verification PIN sent successfully to ${email}`);
+        Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your current email: ${email}`);
+        setIsPinSent(true);
+      } else {
+        console.error('Error sending PIN:', await emailResponse.text()); // Log error response
+        Alert.alert('Error', 'Failed to send PIN. Please try again.');
+      }
+  
     } catch (error) {
+      console.error('Error in sendVerificationPin:', error); // Log the error
       Alert.alert('Error', 'Failed to send PIN. Please try again.');
     }
   };
+  
 
   const verifyPin = async () => {
     const user = auth.currentUser;
     if (!user) return;
 
     try {
+      console.log('Verifying PIN for user:', user.uid);
+
       // Fetch the stored PIN from Firestore
       const pinDocRef = doc(firestore, 'pins', user.uid);
       const pinDoc = await getDoc(pinDocRef);
 
       if (!pinDoc.exists()) {
+        console.log('No PIN found in Firestore for user:', user.uid);
         Alert.alert('Error', 'No PIN found. Please request a new PIN.');
         return;
       }
@@ -153,6 +174,9 @@ export default function AccountScreen() {
       const { pin: storedPin, createdAt } = pinDoc.data();
       const now = new Date();
       const createdAtDate = createdAt.toDate(); // Convert Firestore timestamp to JS Date
+
+      console.log('Stored PIN:', storedPin, 'Entered PIN:', enteredPin);
+      console.log('Time since PIN creation:', (now.getTime() - createdAtDate.getTime()) / 1000, 'seconds');
 
       // Check if the stored PIN is within 1 minute of creation
       const timeDiff = now.getTime() - createdAtDate.getTime();
@@ -164,9 +188,11 @@ export default function AccountScreen() {
 
         // Optionally delete the PIN after verification
         await deleteDoc(pinDocRef);
+        console.log('PIN verified and deleted for user:', user.uid);
       } else if (timeDiff > oneMinute) {
         Alert.alert('Error', 'PIN has expired. Please request a new PIN.');
         await deleteDoc(pinDocRef); // Delete expired PIN
+        console.log('PIN expired and deleted for user:', user.uid);
       } else {
         Alert.alert('Error', 'Invalid PIN. Please try again.');
       }
@@ -205,11 +231,13 @@ export default function AccountScreen() {
         setPassword('');
         setIsEditing(false);
         setIsPinVerified(false);
+        console.log('Email updated for user:', user.uid);
       } else {
         Alert.alert('Error', 'PIN verification is required before changing your email.');
       }
     } catch (error) {
       if (error instanceof Error) {
+        console.error('Error updating email:', error.message);
         Alert.alert('Error', `Failed to update email. ${error.message}`);
       }
     }
