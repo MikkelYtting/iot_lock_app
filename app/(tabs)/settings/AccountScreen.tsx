@@ -119,10 +119,10 @@ export default function AccountScreen() {
   };
 
   const sendVerificationPin = async () => {
-    const generatedPin = Math.floor(10000 + Math.random() * 90000).toString(); // Generate a 5-digit PIN
+    const generatedPin = Math.floor(10000 + Math.random() * 90000).toString(); // Ensure it's a 5-digit PIN
     setPin(generatedPin);
     const user = auth.currentUser;
-  
+
     try {
       // Store the PIN in Firestore under a separate collection, linked to the user ID
       const pinDocRef = doc(firestore, 'pins', user?.uid || ''); // Store by user UID
@@ -130,29 +130,30 @@ export default function AccountScreen() {
         pin: generatedPin,
         createdAt: new Date(), // Store the current timestamp for TTL
       });
-      console.log(`Stored PIN in Firestore for user: ${user?.uid}`);
-  
+
       // Send the PIN via email
       const emailResponse = await fetch(
-        `https://europe-west1-iot-982b9.cloudfunctions.net/sendEmail?to=${email}&pin=${generatedPin}`
+        `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${email}&pin=${generatedPin}`
       );
-  
-      // Check for success or failure based on status code
-      if (emailResponse.ok) {
-        console.log(`Verification PIN sent successfully to ${email}`);
-        Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your current email: ${email}`);
-        setIsPinSent(true);
-      } else {
-        console.error('Error sending PIN:', await emailResponse.text()); // Log error response
-        Alert.alert('Error', 'Failed to send PIN. Please try again.');
+
+      // Check if the response was successful
+      if (!emailResponse.ok) {
+        const errorText = await emailResponse.text();
+        throw new Error(`Failed to send email: ${errorText}`);
       }
-  
+
+      const responseText = await emailResponse.text(); // Parse as plain text
+      console.log(responseText); // Log the response
+      Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your current email: ${email}`);
+      setIsPinSent(true);
+      // Update the navigation route
+router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail: email } });
+
     } catch (error) {
-      console.error('Error in sendVerificationPin:', error); // Log the error
+      console.error('Error sending PIN:', error); // Log the error details
       Alert.alert('Error', 'Failed to send PIN. Please try again.');
     }
   };
-  
 
   const verifyPin = async () => {
     const user = auth.currentUser;
@@ -184,11 +185,16 @@ export default function AccountScreen() {
 
       if (enteredPin === storedPin && timeDiff <= oneMinute) {
         setIsPinVerified(true);
-        Alert.alert('Success', 'PIN verified! You can now update your email.');
-
-        // Optionally delete the PIN after verification
+        Alert.alert('Success', 'PIN verified! Please verify the email change on the new email.', [
+          {
+            text: 'Log me out',
+            onPress: () => {
+              auth.signOut();
+              console.log('User logged out after PIN verification');
+            },
+          },
+        ]);
         await deleteDoc(pinDocRef);
-        console.log('PIN verified and deleted for user:', user.uid);
       } else if (timeDiff > oneMinute) {
         Alert.alert('Error', 'PIN has expired. Please request a new PIN.');
         await deleteDoc(pinDocRef); // Delete expired PIN

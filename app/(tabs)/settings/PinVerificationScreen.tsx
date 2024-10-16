@@ -3,27 +3,26 @@ import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Alert } from 'rea
 import { Layout, Icon } from '@ui-kitten/components';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { doc, getDoc, deleteDoc } from 'firebase/firestore';
-import { firestore } from '../../../firebase';  // Adjust path to your firebase setup
+import { firestore } from '../../../firebase';
 
 const { width } = Dimensions.get('window');
 
-// Define the type for the 'onVerify' function prop
 interface PinVerificationScreenProps {
-  onVerify: () => void; // Assuming 'onVerify' does not take any arguments and returns void
+  onVerify: () => void;
+  userEmail: string; // Pass the user's email as a prop
 }
 
-export default function PinVerificationScreen({ onVerify }: PinVerificationScreenProps) {
-  const [pin, setPin] = useState(''); // Store the entered PIN
-  const pinLength = 5; // Define the length of the PIN (5 digits)
-  const [attempts, setAttempts] = useState(0); // Track the number of attempts
-  const [errorMessage, setErrorMessage] = useState(''); // Error message for invalid PIN entry
-  const maxAttempts = 10; // Max number of attempts
+export default function PinVerificationScreen({ onVerify, userEmail }: PinVerificationScreenProps) {
+  const [pin, setPin] = useState('');
+  const pinLength = 5;
+  const [attempts, setAttempts] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
+  const maxAttempts = 10;
 
   useEffect(() => {
-    // Check clipboard content for valid PIN on mount
     const checkClipboard = async () => {
       const clipboardContent = await Clipboard.getString();
-      if (/^\d{4,5}$/.test(clipboardContent)) { // Check if clipboard content is 4 or 5 digits long
+      if (/^\d{5}$/.test(clipboardContent)) {
         Alert.alert(
           'Detected PIN',
           `A PIN was detected in your clipboard: ${clipboardContent}. Do you want to use it?`,
@@ -31,46 +30,52 @@ export default function PinVerificationScreen({ onVerify }: PinVerificationScree
             { text: 'No' },
             {
               text: 'Yes',
-              onPress: () => setPin(clipboardContent.slice(0, pinLength)), // Use first 4-5 digits if more
+              onPress: () => setPin(clipboardContent.slice(0, pinLength)),
             },
           ]
         );
       }
     };
-
-    checkClipboard(); // Call the function on mount
+    checkClipboard();
   }, []);
 
-  // Handle digit press
   const handleDigitPress = (digit: string) => {
     if (pin.length < pinLength && attempts < maxAttempts) {
-      setPin((prev) => prev + digit); // Append the digit to the existing PIN
+      setPin((prev) => prev + digit);
     }
   };
 
-  // Handle backspace/delete
   const handleBackspace = () => {
     if (attempts < maxAttempts) {
-      setPin((prev) => prev.slice(0, -1)); // Remove the last digit from the PIN
+      setPin((prev) => prev.slice(0, -1));
     }
   };
 
-  // Submit the PIN
   const submitPin = async () => {
     if (pin.length === pinLength && attempts < maxAttempts) {
-      // Fetch the stored PIN from Firestore
-      const userDocRef = doc(firestore, 'pins', 'user-email@example.com'); // Replace with actual email/userId
+      const userDocRef = doc(firestore, 'pins', userEmail); // Use the user's email to fetch the PIN
       const pinDoc = await getDoc(userDocRef);
 
       if (pinDoc.exists()) {
         const storedPin = pinDoc.data().pin;
 
         if (storedPin === pin) {
-          Alert.alert('Success', 'PIN Verified Successfully!');
-          await deleteDoc(userDocRef); // Optionally delete the PIN after successful verification
-          onVerify(); // Call the 'onVerify' prop after verification
+          Alert.alert(
+            'Success',
+            'PIN Verified Successfully! Please verify the email change on the new email.',
+            [
+              {
+                text: 'Log me out',
+                onPress: () => {
+                  onVerify(); // Log the user out after successful verification
+                  console.log('User logged out after PIN verification');
+                },
+              },
+            ]
+          );
+          await deleteDoc(userDocRef); // Delete the PIN after successful verification
         } else {
-          setAttempts(attempts + 1); // Increment attempt counter
+          setAttempts(attempts + 1);
           setErrorMessage(`Incorrect PIN. Attempts remaining: ${maxAttempts - attempts - 1}`);
           if (attempts + 1 >= maxAttempts) {
             Alert.alert('Error', 'Too many incorrect attempts. Please try again later.');
@@ -88,14 +93,17 @@ export default function PinVerificationScreen({ onVerify }: PinVerificationScree
     <Layout style={styles.container}>
       <Text style={styles.title}>PIN VERIFICATION</Text>
 
-      {/* PIN Input Display */}
+      <Text style={styles.instructions}>
+        Check {userEmail} for the PIN code.
+      </Text>
+
       <View style={styles.pinContainer}>
         {Array.from({ length: pinLength }).map((_, index) => (
           <View
             key={index}
             style={[
               styles.pinCircle,
-              { borderColor: index < pin.length ? 'red' : 'gray' }, // Change color if digit is entered
+              { borderColor: index < pin.length ? 'red' : 'gray' },
             ]}
           >
             {index < pin.length ? <View style={styles.filledCircle} /> : null}
@@ -105,35 +113,38 @@ export default function PinVerificationScreen({ onVerify }: PinVerificationScree
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
-      {/* Custom Numeric Keypad */}
       <View style={styles.keypadContainer}>
-        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit, index) => (
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
           <TouchableOpacity
-            key={index}
+            key={digit}
             style={styles.keypadButton}
             onPress={() => handleDigitPress(digit)}
-            disabled={attempts >= maxAttempts} // Disable buttons after max attempts
+            disabled={attempts >= maxAttempts}
           >
             <Text style={styles.keypadText}>{digit}</Text>
           </TouchableOpacity>
         ))}
-        {/* Empty Space */}
         <View style={[styles.keypadButton, { backgroundColor: 'transparent' }]} />
-        {/* '0' Button */}
-        <TouchableOpacity style={styles.keypadButton} onPress={() => handleDigitPress('0')} disabled={attempts >= maxAttempts}>
+        <TouchableOpacity
+          style={styles.keypadButton}
+          onPress={() => handleDigitPress('0')}
+          disabled={attempts >= maxAttempts}
+        >
           <Text style={styles.keypadText}>0</Text>
         </TouchableOpacity>
-        {/* Backspace Button */}
-        <TouchableOpacity style={styles.keypadButton} onPress={handleBackspace} disabled={attempts >= maxAttempts}>
+        <TouchableOpacity
+          style={styles.keypadButton}
+          onPress={handleBackspace}
+          disabled={attempts >= maxAttempts}
+        >
           <Icon name="backspace-outline" pack="eva" style={styles.iconStyle} />
         </TouchableOpacity>
       </View>
 
-      {/* Submit PIN Button */}
       <TouchableOpacity
         style={styles.submitButton}
         onPress={submitPin}
-        disabled={attempts >= maxAttempts} // Disable submission after max attempts
+        disabled={attempts >= maxAttempts}
       >
         <Text style={styles.submitButtonText}>Submit PIN</Text>
       </TouchableOpacity>
@@ -154,6 +165,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#ffffff',
     marginBottom: 30,
+  },
+  instructions: {
+    color: '#ffffff',
+    marginBottom: 20,
+    textAlign: 'center',
+    fontSize: 16,
   },
   pinContainer: {
     flexDirection: 'row',
@@ -179,7 +196,7 @@ const styles = StyleSheet.create({
   keypadContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    width: width * 0.6, // Set the keypad width dynamically
+    width: width * 0.6,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -214,5 +231,6 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#ff4d4d',
     marginBottom: 20,
+    textAlign: 'center',
   },
 });

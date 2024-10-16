@@ -1,8 +1,8 @@
-import * as functions from "firebase-functions/v1"; // Import v1 functions
+import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-import sendGridMail from "@sendgrid/mail"; // Use default import for SendGrid
+import sendGridMail from "@sendgrid/mail";
 import * as logger from "firebase-functions/logger";
-import { Request, Response } from "express"; // Import the types for req and res
+import { Request, Response } from "express";
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -11,26 +11,26 @@ admin.initializeApp();
 const SENDGRID_API_KEY = functions.config().sendgrid.key;
 
 // Properly configure SendGrid
-sendGridMail.setApiKey(SENDGRID_API_KEY); // Correct method call
+sendGridMail.setApiKey(SENDGRID_API_KEY);
 
 // --------------------- v1 function (email sending with PIN generation) -------------------------
 export const sendEmail = functions
-  .region('europe-west1')  // Set region to Europe for v1
+  .region('europe-west1')
   .runWith({ timeoutSeconds: 300, memory: '512MB' })
   .https.onRequest(async (req: Request, res: Response) => {
-    logger.info('Received request to send email', { query: req.query }); // Log the incoming request
+    logger.info('Received request to send email', { query: req.query });
 
     // Validate query parameters
     const recipientEmail = req.query.to as string;
     if (!recipientEmail) {
-      logger.error('Missing recipient email'); // Log missing parameters
-      res.status(400).send('Missing recipient email.'); // Respond with 400 status
-      return; // Ensure we exit the function here
+      logger.error('Missing recipient email');
+      res.status(400).send('Missing recipient email.');
+      return;
     }
 
     // Generate a 5-digit PIN
-    const pin = Math.floor(10000 + Math.random() * 90000).toString(); // 5-digit PIN
-    logger.info(`Generated PIN: ${pin}`, { recipientEmail }); // Log the generated PIN
+    const pin = Math.floor(10000 + Math.random() * 90000).toString();
+    logger.info(`Generated PIN: ${pin}`, { recipientEmail });
 
     // Store the PIN in Firestore with a timestamp
     const userDocRef = admin.firestore().collection('pins').doc(recipientEmail);
@@ -41,30 +41,29 @@ export const sendEmail = functions
         createdAt,
         requestCount: admin.firestore.FieldValue.increment(1), // Increment request count
       });
-      logger.info(`Stored PIN for ${recipientEmail} in Firestore`); // Log Firestore action
+      logger.info(`Stored PIN for ${recipientEmail} in Firestore`);
     } catch (firestoreError) {
-      logger.error("Error storing PIN in Firestore:", firestoreError); // Log Firestore error
-      res.status(500).send("Failed to store PIN in Firestore."); // Respond with error
-      return; // Exit on error
+      logger.error("Error storing PIN in Firestore:", firestoreError);
+      res.status(500).send("Failed to store PIN in Firestore.");
+      return;
     }
 
     // Send the email with the PIN
     const msg = {
       to: recipientEmail,
-      from: "Arguslocks@gmail.com", // Sender's email
+      from: "Arguslocks@gmail.com",
       subject: "Your Verification PIN",
-      text: `Your verification PIN is: ${pin}`,
-      html: `<strong>Your verification PIN is: ${pin}</strong>`,
+      text: `Your verification PIN is: ${pin}. Please use this code to complete your verification.`,
+      html: `<p>Your verification PIN is: <strong>${pin}</strong>. Please use this code to complete your verification.</p>`,
     };
 
     try {
-      logger.info('Sending email', { msg }); // Log email details
-      await sendGridMail.send(msg); // Send the email using SendGrid
-      logger.info('Email sent successfully', { recipientEmail }); // Log success
-      res.status(200).send("Email sent successfully."); // Send success response
+      logger.info('Sending email', { msg });
+      await sendGridMail.send(msg);
+      logger.info('Email sent successfully', { recipientEmail });
+      res.status(200).send("Email sent successfully.");
     } catch (error) {
-      logger.error("Error sending email:", error); // Log SendGrid error
-      res.status(500).send("Failed to send email."); // Send failure response
+      logger.error("Error sending email:", error);
+      res.status(500).send("Failed to send email.");
     }
   });
-
