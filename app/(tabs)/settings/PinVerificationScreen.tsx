@@ -10,16 +10,35 @@ const { width } = Dimensions.get('window');
 interface PinVerificationScreenProps {
   onVerify: () => void;
   userEmail: string; // Pass the user's email as a prop
+  isNavigatedFromVerification: boolean; // Track if the user came from the "Go to Keypad" button
 }
 
-export default function PinVerificationScreen({ onVerify, userEmail }: PinVerificationScreenProps) {
+export default function PinVerificationScreen({
+  onVerify,
+  userEmail,
+  isNavigatedFromVerification,
+}: PinVerificationScreenProps) {
   const [pin, setPin] = useState('');
   const pinLength = 5;
   const [attempts, setAttempts] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [hasAgreed, setHasAgreed] = useState(false); // Checkbox state
   const [isModalVisible, setModalVisible] = useState(false); // Modal visibility state
+  const [initialKeypadEntry, setInitialKeypadEntry] = useState(true); // Flag for showing the message only once
   const maxAttempts = 10;
+
+  // Display message only if the user did not come from the "Go to Keypad" button
+  useEffect(() => {
+    if (initialKeypadEntry && !isNavigatedFromVerification) {
+      if (userEmail) {
+        // Show the alert message box only on the first entry to the screen
+        Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your email: ${userEmail}`);
+      } else {
+        Alert.alert('Error', 'User email is not available.');
+      }
+      setInitialKeypadEntry(false); // Reset flag to avoid showing the message again
+    }
+  }, [initialKeypadEntry, userEmail, isNavigatedFromVerification]);
 
   useEffect(() => {
     const checkClipboard = async () => {
@@ -104,8 +123,8 @@ export default function PinVerificationScreen({ onVerify, userEmail }: PinVerifi
             {
               text: 'Request New PIN',
               onPress: () => {
-                // Call the function to send a new PIN
-                sendVerificationPin();
+                // Call the function to send a new PIN from AccountScreen
+                onVerify();  // You can now use `onVerify` passed from AccountScreen
               },
             },
           ],
@@ -325,6 +344,3 @@ const styles = StyleSheet.create({
     backgroundColor: 'red',
   },
 });
-function sendVerificationPin() {
-  throw new Error('Function not implemented.');
-}
