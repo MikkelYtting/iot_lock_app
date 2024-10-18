@@ -15,6 +15,9 @@ import { validateEmail, validatePassword } from '../../../components/LoginScreen
 
 const { width } = Dimensions.get('window');
 
+// Helper function to detect developer mode
+const isDeveloperMode = __DEV__;
+
 export default function AccountScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -35,6 +38,12 @@ export default function AccountScreen() {
       console.log('Fetching user profile...');
       setName(user.displayName || '');
       setEmail(user.email || '');
+
+      // Auto-fill email and password in developer mode
+      if (isDeveloperMode) {
+        setNewEmail('Mytting1994@gmail.com');
+        setPassword('123456HH');
+      }
     }
 
     const fetchProfile = async () => {
@@ -99,7 +108,7 @@ export default function AccountScreen() {
 
     try {
       const user = auth.currentUser;
-      if (user) {
+      if (user && name !== user.displayName) {
         await updateProfile(user, { displayName: name });
         await setDoc(
           doc(firestore, 'users', user.uid),
@@ -109,6 +118,8 @@ export default function AccountScreen() {
 
         Alert.alert('Success', 'Name updated successfully.');
         console.log('Name updated successfully for user:', user.uid);
+      } else {
+        Alert.alert('Error', 'Name has not been changed.');
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -136,19 +147,24 @@ export default function AccountScreen() {
         ttl: expirationTime,   // TTL field to specify when the document should expire
       });
   
-      // Send the PIN via email
+      console.log(`PIN (${generatedPin}) stored in Firestore for user: ${user?.uid}`);
+  
+      // Send the PIN via email using SendGrid
       const emailResponse = await fetch(
         `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${email}&pin=${generatedPin}`
       );
   
-      // Check if the response was successful
+      // Log the response status
+      console.log(`SendGrid email response status: ${emailResponse.status}`);
       if (!emailResponse.ok) {
         const errorText = await emailResponse.text();
+        console.error(`Failed to send email: ${errorText}`);
         throw new Error(`Failed to send email: ${errorText}`);
       }
   
       const responseText = await emailResponse.text(); // Parse as plain text
-      console.log(responseText); // Log the response
+      console.log(`SendGrid response: ${responseText}`);
+  
       Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your current email: ${email}`);
       setIsPinSent(true);
   
@@ -169,14 +185,14 @@ export default function AccountScreen() {
     if (!user) return;
   
     try {
-      console.log('Verifying PIN for user:', user.uid);
+      console.log(`Verifying PIN for user: ${user.uid}`);
   
       // Fetch the stored PIN from Firestore
       const pinDocRef = doc(firestore, 'pins', user.uid);
       const pinDoc = await getDoc(pinDocRef);
   
       if (!pinDoc.exists()) {
-        console.log('No PIN found in Firestore for user:', user.uid);
+        console.log(`No PIN found for user: ${user.uid}`);
         Alert.alert('Error', 'No PIN found. Please request a new PIN.');
         return;
       }
@@ -193,27 +209,29 @@ export default function AccountScreen() {
       const createdAtDate = createdAt.toDate(); // Convert Firestore timestamp to JS Date
       const timeDiff = now.getTime() - createdAtDate.getTime();
   
-      console.log('Stored PIN:', storedPin, 'Entered PIN:', enteredPin);
-      console.log('Time since PIN creation:', timeDiff / 1000, 'seconds');
+      console.log(`Stored PIN: ${storedPin}, Entered PIN: ${enteredPin}`);
+      console.log(`Time since PIN creation: ${timeDiff / 1000} seconds`);
   
       // Check if the stored PIN is within the expiration time (1 minute)
       if (enteredPin === storedPin && timeDiff <= PIN_EXPIRATION_TIME) {
         setIsPinVerified(true);
+        console.log('PIN verified successfully.');
         Alert.alert('Success', 'PIN verified! Please verify the email change on the new email.', [
           {
             text: 'Log me out',
             onPress: () => {
               auth.signOut();
-              console.log('User logged out after PIN verification');
+              console.log('User logged out after PIN verification.');
             },
           },
         ]);
         await deleteDoc(pinDocRef); // Delete PIN after successful verification
       } else if (timeDiff > PIN_EXPIRATION_TIME) {
+        console.log('PIN expired.');
         Alert.alert('Error', 'PIN has expired. Please request a new PIN.');
         await deleteDoc(pinDocRef); // Delete expired PIN
-        console.log('PIN expired and deleted for user:', user.uid);
       } else {
+        console.log('Invalid PIN entered.');
         Alert.alert('Error', 'Invalid PIN. Please try again.');
       }
     } catch (error) {
@@ -225,6 +243,11 @@ export default function AccountScreen() {
 
   const handleEmailChange = async () => {
     if (!validateInputs()) return;
+
+    if (!password) {
+      Alert.alert('Error', 'Password is required to change your email.');
+      return;
+    }
   
     try {
       const user = auth.currentUser;
@@ -232,14 +255,15 @@ export default function AccountScreen() {
         // Reauthenticate the user
         const credential = EmailAuthProvider.credential(user.email!, password);
         await reauthenticateWithCredential(user, credential);
+        console.log(`User ${user.uid} reauthenticated successfully.`);
   
         // Update the email
         await updateEmail(user, newEmail);
-        console.log('Email updated to:', user.email);
+        console.log(`Email updated to ${newEmail} for user: ${user.uid}`);
   
         // Send the verification email
         await sendEmailVerification(user);
-        console.log('Verification email sent to:', user.email);
+        console.log(`Verification email sent to new email: ${newEmail}`);
   
         setEmailVerified(false);
   
@@ -254,14 +278,16 @@ export default function AccountScreen() {
           emailVerified: false,
           emailHistory: arrayUnion(email),
         });
+        console.log(`Firestore updated with new email: ${newEmail} and email history.`);
   
         setEmail(newEmail);
         setNewEmail('');
         setPassword('');
         setIsEditing(false);
         setIsPinVerified(false);
-        console.log('Email updated and verification sent to:', newEmail);
+        console.log('Email update process completed.');
       } else {
+        console.log('PIN verification is required before changing email.');
         Alert.alert('Error', 'PIN verification is required before changing your email.');
       }
     } catch (error) {
@@ -271,6 +297,7 @@ export default function AccountScreen() {
       }
     }
   };
+  
   
   
   return (
@@ -297,7 +324,7 @@ export default function AccountScreen() {
         status={errors.name ? 'danger' : 'basic'}
         caption={errors.name}
       />
-      <Button onPress={handleNameChange} style={styles.button}>
+      <Button onPress={handleNameChange} style={styles.button} disabled={name === auth.currentUser?.displayName}>
         Update Name
       </Button>
 
@@ -350,9 +377,6 @@ export default function AccountScreen() {
             </>
           )}
 
-          <Button status="primary" onPress={handleEmailChange} style={styles.button}>
-            Confirm Email Change
-          </Button>
         </>
       ) : (
         <Button status="warning" onPress={() => setIsEditing(true)} style={styles.button}>
