@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Alert } from 'react-native';
-import { Layout, Icon } from '@ui-kitten/components';
+import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Modal, Alert } from 'react-native';
+import { Layout, Icon, CheckBox, Button } from '@ui-kitten/components';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { doc, getDoc, deleteDoc } from 'firebase/firestore';
-import { firestore } from '../../../firebase';
+import { auth, firestore } from '../../../firebase';
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +17,8 @@ export default function PinVerificationScreen({ onVerify, userEmail }: PinVerifi
   const pinLength = 5;
   const [attempts, setAttempts] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
+  const [hasAgreed, setHasAgreed] = useState(false); // Checkbox state
+  const [isModalVisible, setModalVisible] = useState(false); // Modal visibility state
   const maxAttempts = 10;
 
   useEffect(() => {
@@ -52,40 +54,71 @@ export default function PinVerificationScreen({ onVerify, userEmail }: PinVerifi
   };
 
   const submitPin = async () => {
-    if (pin.length === pinLength && attempts < maxAttempts) {
-      const userDocRef = doc(firestore, 'pins', userEmail); // Use the user's email to fetch the PIN
-      const pinDoc = await getDoc(userDocRef);
+    const user = auth.currentUser;
+    if (!user) return;
 
-      if (pinDoc.exists()) {
-        const storedPin = pinDoc.data().pin;
+    try {
+      console.log('Verifying PIN for user:', user.uid);
 
-        if (storedPin === pin) {
-          Alert.alert(
-            'Success',
-            'PIN Verified Successfully! Please verify the email change on the new email.',
-            [
-              {
-                text: 'Log me out',
-                onPress: () => {
-                  onVerify(); // Log the user out after successful verification
-                  console.log('User logged out after PIN verification');
-                },
-              },
-            ]
-          );
-          await deleteDoc(userDocRef); // Delete the PIN after successful verification
-        } else {
-          setAttempts(attempts + 1);
-          setErrorMessage(`Incorrect PIN. Attempts remaining: ${maxAttempts - attempts - 1}`);
-          if (attempts + 1 >= maxAttempts) {
-            Alert.alert('Error', 'Too many incorrect attempts. Please try again later.');
-          }
-        }
-      } else {
-        Alert.alert('Error', 'No PIN found.');
+      // Fetch the stored PIN from Firestore
+      const pinDocRef = doc(firestore, 'pins', user.uid);
+      const pinDoc = await getDoc(pinDocRef);
+
+      if (!pinDoc.exists()) {
+        console.log('No PIN found in Firestore for user:', user.uid);
+        Alert.alert('Error', 'No PIN found. Please request a new PIN.');
+        return;
       }
-    } else {
-      setErrorMessage('Please enter the full 5-digit PIN.');
+
+      const { pin: storedPin, createdAt } = pinDoc.data();
+      const now = new Date();
+
+      if (!createdAt) {
+        console.error('Error: createdAt field is missing from Firestore document');
+        Alert.alert('Error', 'Invalid PIN document. Please request a new PIN.');
+        return;
+      }
+
+      const createdAtDate = createdAt.toDate(); // Convert Firestore timestamp to JS Date
+      const timeDiff = now.getTime() - createdAtDate.getTime();
+
+      console.log('Stored PIN:', storedPin, 'Entered PIN:', pin);
+      console.log('Time since PIN creation:', timeDiff / 1000, 'seconds');
+
+      // Check if the stored PIN is within the expiration time (1 minute)
+      const oneMinute = 60 * 1000;
+      if (pin === storedPin && timeDiff <= oneMinute) {
+        setModalVisible(true); // Show modal instead of Alert
+
+        await deleteDoc(pinDocRef); // Delete PIN after successful verification
+      } else if (timeDiff > oneMinute) {
+        // PIN has expired
+        Alert.alert(
+          'PIN Expired',
+          'Your PIN has expired. Would you like to request a new one?',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+            {
+              text: 'Request New PIN',
+              onPress: () => {
+                // Call the function to send a new PIN
+                sendVerificationPin();
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+        await deleteDoc(pinDocRef); // Delete expired PIN
+        console.log('PIN expired and deleted for user:', user.uid);
+      } else {
+        Alert.alert('Error', 'Invalid PIN. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error verifying PIN:', error);
+      Alert.alert('Error', 'Failed to verify PIN. Please try again.');
     }
   };
 
@@ -101,10 +134,7 @@ export default function PinVerificationScreen({ onVerify, userEmail }: PinVerifi
         {Array.from({ length: pinLength }).map((_, index) => (
           <View
             key={index}
-            style={[
-              styles.pinCircle,
-              { borderColor: index < pin.length ? 'red' : 'gray' },
-            ]}
+            style={[styles.pinCircle, { borderColor: index < pin.length ? 'red' : 'gray' }]}
           >
             {index < pin.length ? <View style={styles.filledCircle} /> : null}
           </View>
@@ -148,6 +178,42 @@ export default function PinVerificationScreen({ onVerify, userEmail }: PinVerifi
       >
         <Text style={styles.submitButtonText}>Submit PIN</Text>
       </TouchableOpacity>
+
+      {/* Modal for showing the checkbox and Log me out */}
+      <Modal
+        visible={isModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalText}>
+              Please verify the email change on the new email.
+            </Text>
+
+            {/* Checkbox for Agreement */}
+            <CheckBox
+              checked={hasAgreed}
+              onChange={setHasAgreed}
+              style={styles.checkbox}
+            >
+              I understand that I need to click the verification link sent to my new email for the changes to take effect.
+            </CheckBox>
+
+            <Button
+              onPress={() => {
+                auth.signOut();
+                setModalVisible(false); // Close modal after logout
+              }}
+              style={styles.logoutButton}
+              disabled={!hasAgreed} // Disable the button until the checkbox is checked
+            >
+              Log me out
+            </Button>
+          </View>
+        </View>
+      </Modal>
     </Layout>
   );
 }
@@ -233,4 +299,32 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
   },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalText: {
+    fontSize: 18,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  checkbox: {
+    marginVertical: 10,
+  },
+  logoutButton: {
+    marginTop: 20,
+    backgroundColor: 'red',
+  },
 });
+function sendVerificationPin() {
+  throw new Error('Function not implemented.');
+}

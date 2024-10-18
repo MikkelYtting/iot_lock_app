@@ -225,45 +225,54 @@ export default function AccountScreen() {
 
   const handleEmailChange = async () => {
     if (!validateInputs()) return;
-
+  
     try {
       const user = auth.currentUser;
       if (user && newEmail && isPinVerified) {
+        // Reauthenticate the user
         const credential = EmailAuthProvider.credential(user.email!, password);
         await reauthenticateWithCredential(user, credential);
-
+  
+        // Update the email
         await updateEmail(user, newEmail);
+        console.log('Email updated to:', user.email);
+  
+        // Send the verification email
         await sendEmailVerification(user);
+        console.log('Verification email sent to:', user.email);
+  
         setEmailVerified(false);
-
+  
         Alert.alert(
           'Success',
-          'Email updated! Please check your new email address to complete verification.'
+          `Email updated! Please check your new email address (${newEmail}) to complete verification.`
         );
-
+  
+        // Update Firestore with the new email and email history
         await updateDoc(doc(firestore, 'users', user.uid), {
           email: newEmail,
           emailVerified: false,
           emailHistory: arrayUnion(email),
         });
-
+  
         setEmail(newEmail);
         setNewEmail('');
         setPassword('');
         setIsEditing(false);
         setIsPinVerified(false);
-        console.log('Email updated for user:', user.uid);
+        console.log('Email updated and verification sent to:', newEmail);
       } else {
         Alert.alert('Error', 'PIN verification is required before changing your email.');
       }
     } catch (error) {
       if (error instanceof Error) {
         console.error('Error updating email:', error.message);
-        Alert.alert('Error', `Failed to update email. ${error.message}`);
+        Alert.alert('Error', `Failed to update email: ${error.message}`);
       }
     }
   };
-
+  
+  
   return (
     <Layout style={styles.container}>
       {!emailVerified && (
