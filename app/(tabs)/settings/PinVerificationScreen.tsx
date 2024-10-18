@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Modal, Alert } from 'react-native';
 import { Layout, Icon, CheckBox, Button } from '@ui-kitten/components';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { auth, firestore } from '../../../firebase';
 
 const { width } = Dimensions.get('window');
@@ -72,6 +72,50 @@ export default function PinVerificationScreen({
     }
   };
 
+  const sendVerificationPin = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+        Alert.alert('Error', 'User is not authenticated.');
+        return;
+    }
+
+    const generatedPin = Math.floor(10000 + Math.random() * 90000).toString(); // Ensure it's a 5-digit PIN
+
+    try {
+      const expirationTime = new Date();
+      expirationTime.setMinutes(expirationTime.getMinutes() + 1);
+
+      const pinDocRef = doc(firestore, 'pins', user.uid);
+      await setDoc(pinDocRef, {
+        pin: generatedPin,
+        createdAt: new Date(),
+        ttl: expirationTime,
+        userId: user.uid,
+      });
+
+      console.log(`PIN (${generatedPin}) stored in Firestore for user: ${user.uid}`);
+
+      const emailResponse = await fetch(
+        `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${userEmail}&pin=${generatedPin}`
+      );
+
+      if (!emailResponse.ok) {
+        const errorText = await emailResponse.text();
+        throw new Error(`Failed to send email: ${errorText}`);
+      }
+
+      Alert.alert('PIN Sent', 'A new verification PIN has been sent to your email.');
+
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('Error sending PIN:', error.message);
+        Alert.alert('Error', 'Failed to send PIN. Please try again.');
+      } else {
+        console.error('Unexpected error', error);
+      }
+    }
+  };
+
   const submitPin = async () => {
     const user = auth.currentUser;
     if (!user) return;
@@ -123,8 +167,7 @@ export default function PinVerificationScreen({
             {
               text: 'Request New PIN',
               onPress: () => {
-                // Call the function to send a new PIN from AccountScreen
-                onVerify();  // You can now use `onVerify` passed from AccountScreen
+                sendVerificationPin();  // Call sendVerificationPin to request a new PIN
               },
             },
           ],
