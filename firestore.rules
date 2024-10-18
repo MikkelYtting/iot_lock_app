@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Rule for User Documents
+    match /users/{userId} {
+      // Only authenticated users can read/write their own user data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Rule for Pins Documents
+    match /pins/{userId} {
+      // Only authenticated users can read/write their own PIN data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // TTL: Automatically delete PINs after their ttl field is reached
+      // Commenting out this rule since TTL is no longer being used
+      // allow delete: if request.time > resource.data.ttl;
+    }
+
+    // Placeholder for future IoT devices (locks, trackers)
+    // Currently, no rules are defined here, but you can expand it when needed
+    match /devices/{deviceId} {
+      // No access allowed until IoT devices are implemented
+      allow read, write: if false;
+    }
+
+    // Add rules here as you begin implementing IoT features
+  }
+}

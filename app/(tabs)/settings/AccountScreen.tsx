@@ -122,68 +122,82 @@ export default function AccountScreen() {
     const generatedPin = Math.floor(10000 + Math.random() * 90000).toString(); // Ensure it's a 5-digit PIN
     setPin(generatedPin);
     const user = auth.currentUser;
-
+  
     try {
+      // Get the current time and set TTL (1 minute from now)
+      const expirationTime = new Date();
+      expirationTime.setMinutes(expirationTime.getMinutes() + 1); // TTL is set to 1 minute
+  
       // Store the PIN in Firestore under a separate collection, linked to the user ID
       const pinDocRef = doc(firestore, 'pins', user?.uid || ''); // Store by user UID
       await setDoc(pinDocRef, {
         pin: generatedPin,
-        createdAt: new Date(), // Store the current timestamp for TTL
+        createdAt: new Date(), // Store the current timestamp
+        ttl: expirationTime,   // TTL field to specify when the document should expire
       });
-
+  
       // Send the PIN via email
       const emailResponse = await fetch(
         `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${email}&pin=${generatedPin}`
       );
-
+  
       // Check if the response was successful
       if (!emailResponse.ok) {
         const errorText = await emailResponse.text();
         throw new Error(`Failed to send email: ${errorText}`);
       }
-
+  
       const responseText = await emailResponse.text(); // Parse as plain text
       console.log(responseText); // Log the response
       Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your current email: ${email}`);
       setIsPinSent(true);
+  
       // Update the navigation route
-router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail: email } });
-
+      router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail: email } });
+  
     } catch (error) {
       console.error('Error sending PIN:', error); // Log the error details
       Alert.alert('Error', 'Failed to send PIN. Please try again.');
     }
   };
+  
+
+  const PIN_EXPIRATION_TIME = 60 * 1000; // 1 minute in milliseconds
 
   const verifyPin = async () => {
     const user = auth.currentUser;
     if (!user) return;
-
+  
     try {
       console.log('Verifying PIN for user:', user.uid);
-
+  
       // Fetch the stored PIN from Firestore
       const pinDocRef = doc(firestore, 'pins', user.uid);
       const pinDoc = await getDoc(pinDocRef);
-
+  
       if (!pinDoc.exists()) {
         console.log('No PIN found in Firestore for user:', user.uid);
         Alert.alert('Error', 'No PIN found. Please request a new PIN.');
         return;
       }
-
+  
       const { pin: storedPin, createdAt } = pinDoc.data();
       const now = new Date();
+  
+      if (!createdAt) {
+        console.error('Error: createdAt field is missing from Firestore document');
+        Alert.alert('Error', 'Invalid PIN document. Please request a new PIN.');
+        return;
+      }
+  
       const createdAtDate = createdAt.toDate(); // Convert Firestore timestamp to JS Date
-
-      console.log('Stored PIN:', storedPin, 'Entered PIN:', enteredPin);
-      console.log('Time since PIN creation:', (now.getTime() - createdAtDate.getTime()) / 1000, 'seconds');
-
-      // Check if the stored PIN is within 1 minute of creation
       const timeDiff = now.getTime() - createdAtDate.getTime();
-      const oneMinute = 60 * 1000;
-
-      if (enteredPin === storedPin && timeDiff <= oneMinute) {
+  
+      console.log('Stored PIN:', storedPin, 'Entered PIN:', enteredPin);
+      console.log('Time since PIN creation:', timeDiff / 1000, 'seconds');
+  
+      // Check if the stored PIN is within the expiration time (1 minute)
+      if (enteredPin === storedPin && timeDiff <= PIN_EXPIRATION_TIME) {
         setIsPinVerified(true);
         Alert.alert('Success', 'PIN verified! Please verify the email change on the new email.', [
           {
@@ -194,8 +208,8 @@ router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { user
             },
           },
         ]);
-        await deleteDoc(pinDocRef);
-      } else if (timeDiff > oneMinute) {
+        await deleteDoc(pinDocRef); // Delete PIN after successful verification
+      } else if (timeDiff > PIN_EXPIRATION_TIME) {
         Alert.alert('Error', 'PIN has expired. Please request a new PIN.');
         await deleteDoc(pinDocRef); // Delete expired PIN
         console.log('PIN expired and deleted for user:', user.uid);
@@ -207,6 +221,7 @@ router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { user
       Alert.alert('Error', 'Failed to verify PIN. Please try again.');
     }
   };
+  
 
   const handleEmailChange = async () => {
     if (!validateInputs()) return;
