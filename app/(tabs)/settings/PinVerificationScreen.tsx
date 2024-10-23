@@ -27,6 +27,11 @@ export default function PinVerificationScreen({
   const [initialKeypadEntry, setInitialKeypadEntry] = useState(true); // Flag for showing the message only once
   const maxAttempts = 10;
 
+  // Log userEmail on mount to debug its state
+  useEffect(() => {
+    console.log('PinVerificationScreen userEmail:', userEmail);
+  }, [userEmail]);
+
   // Display message only if the user did not come from the "Go to Keypad" button
   useEffect(() => {
     if (initialKeypadEntry && !isNavigatedFromVerification) {
@@ -39,7 +44,7 @@ export default function PinVerificationScreen({
       setInitialKeypadEntry(false); // Reset flag to avoid showing the message again
     }
   }, [initialKeypadEntry, userEmail, isNavigatedFromVerification]);
-  
+
   useEffect(() => {
     const checkClipboard = async () => {
       const clipboardContent = await Clipboard.getString();
@@ -76,6 +81,11 @@ export default function PinVerificationScreen({
     const user = auth.currentUser;
     if (!user) {
       Alert.alert('Error', 'User is not authenticated.');
+      return;
+    }
+
+    if (!userEmail) {
+      Alert.alert('Error', 'Email is not available. Please try again.');
       return;
     }
 
@@ -167,7 +177,7 @@ export default function PinVerificationScreen({
             {
               text: 'Request New PIN',
               onPress: () => {
-                sendVerificationPin();  // Call sendVerificationPin to request a new PIN
+                sendVerificationPin(); // Call sendVerificationPin to request a new PIN
               },
             },
           ],
@@ -200,7 +210,7 @@ export default function PinVerificationScreen({
           >
             {index < pin.length ? <View style={styles.filledCircle} /> : null}
           </View>
-        ))}
+        ))} 
       </View>
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}

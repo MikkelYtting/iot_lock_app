@@ -199,6 +199,12 @@ export default function AccountScreen() {
 
     const userEmail = user.email; // Ensure the current authenticated user's email is used
 
+    if (!userEmail) {
+      Alert.alert('Error', 'Email is not available.');
+      console.error('Email is undefined or empty.');
+      return;
+    }
+
     if (!isEmailValid || !newEmail) {
       Alert.alert('Error', 'Please enter a valid new email before requesting a PIN.');
       return;
