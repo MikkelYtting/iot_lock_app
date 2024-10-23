@@ -33,8 +33,6 @@ export default function PinVerificationScreen({
       if (userEmail) {
         // Show the alert message box only on the first entry to the screen
         Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your email: ${userEmail}`);
-      } else {
-        Alert.alert('Error', 'User email is not available.');
       }
       setInitialKeypadEntry(false); // Reset flag to avoid showing the message again
     }

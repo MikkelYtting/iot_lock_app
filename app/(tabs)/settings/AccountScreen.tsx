@@ -39,6 +39,7 @@ export default function AccountScreen() {
   useEffect(() => {
     const user = auth.currentUser;
     if (user) {
+      console.log('User fetched in useEffect:', user);
       setName(user.displayName || '');
       setEmail(user.email || '');
       setIsEmailValid(true);
@@ -47,21 +48,33 @@ export default function AccountScreen() {
         setNewEmail('Mytting1994@gmail.com');
         setPassword('123456HH');
       }
+    } else {
+      console.error('No authenticated user found during initial fetch');
     }
 
     const fetchProfile = async () => {
       try {
-        const userDoc = await getDoc(doc(firestore, 'users', user?.uid || ''));
+        if (!user) {
+          console.error('No authenticated user found during fetchProfile');
+          return;
+        }
+
+        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
         if (userDoc.exists()) {
-          setName(userDoc.data()?.name || '');
-          setEmail(userDoc.data()?.email || '');
-          setEmailVerified(userDoc.data()?.emailVerified || false);
+          const profileData = userDoc.data();
+          setName(profileData?.name || '');
+          setEmail(profileData?.email || '');
+          setEmailVerified(profileData?.emailVerified || false);
+
+          console.log('Email fetched from Firestore profile:', profileData?.email);
+        } else {
+          console.error('User profile document does not exist');
         }
       } catch (error) {
         if (error instanceof Error) {
           console.error('Error fetching user profile:', error.message);
         } else {
-          console.error('Unexpected error', error);
+          console.error('Unexpected error during fetchProfile', error);
         }
       }
     };
@@ -112,7 +125,7 @@ export default function AccountScreen() {
         if (error instanceof Error) {
           console.error('Error refreshing email verification status:', error.message);
         } else {
-          console.error('Unexpected error', error);
+          console.error('Unexpected error during refreshEmailVerificationStatus', error);
         }
       }
     }
@@ -142,11 +155,7 @@ export default function AccountScreen() {
       const user = auth.currentUser;
       if (user && name !== user.displayName) {
         await updateProfile(user, { displayName: name });
-        await setDoc(
-          doc(firestore, 'users', user.uid),
-          { name },
-          { merge: true }
-        );
+        await setDoc(doc(firestore, 'users', user.uid), { name }, { merge: true });
         Alert.alert('Success', 'Name updated successfully.');
       } else {
         Alert.alert('Error', 'Name has not been changed.');
@@ -156,27 +165,49 @@ export default function AccountScreen() {
         console.error('Error updating name:', error.message);
         Alert.alert('Error', 'Failed to update name. Please try again.');
       } else {
-        console.error('Unexpected error', error);
+        console.error('Unexpected error during handleNameChange', error);
       }
+    }
+  };
+
+  const reauthenticateUser = async () => {
+    const user = auth.currentUser;
+    if (!user || !password) return false;
+
+    try {
+      const credential = EmailAuthProvider.credential(user.email!, password);
+      await reauthenticateWithCredential(user, credential);
+      return true;
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('Error reauthenticating user:', error.message);
+        Alert.alert('Authentication Failed', 'The provided password is incorrect. Please try again.');
+      }
+      return false;
     }
   };
 
   const sendVerificationPin = async () => {
     const user = auth.currentUser;
     if (!user) {
-        Alert.alert('Error', 'User is not authenticated.');
-        return;
-    }
-
-    if (!isEmailValid) {
-      Alert.alert('Error', 'Please enter a valid email before requesting a PIN.');
+      Alert.alert('Error', 'User is not authenticated.');
       return;
     }
 
-    const generatedPin = Math.floor(10000 + Math.random() * 90000).toString(); // Ensure it's a 5-digit PIN
-    setPin(generatedPin);
+    const isReauthenticated = await reauthenticateUser();
+    if (!isReauthenticated) return;
+
+    const userEmail = user.email; // Ensure the current authenticated user's email is used
+
+    if (!isEmailValid || !newEmail) {
+      Alert.alert('Error', 'Please enter a valid new email before requesting a PIN.');
+      return;
+    }
 
     try {
+      const generatedPin = Math.floor(10000 + Math.random() * 90000).toString();
+      setPin(generatedPin);
+
       const expirationTime = new Date();
       expirationTime.setMinutes(expirationTime.getMinutes() + 1);
 
@@ -191,7 +222,7 @@ export default function AccountScreen() {
       console.log(`PIN (${generatedPin}) stored in Firestore for user: ${user.uid}`);
 
       const emailResponse = await fetch(
-        `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${email}&pin=${generatedPin}`
+        `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${userEmail}&pin=${generatedPin}`
       );
 
       if (!emailResponse.ok) {
@@ -199,19 +230,17 @@ export default function AccountScreen() {
         throw new Error(`Failed to send email: ${errorText}`);
       }
 
-      // Go directly to the keypad without showing the message box if a new PIN is generated
-      router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail: email } });
+      router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail } });
 
       setIsPinSent(true);
       setEnteredPin('');
       setIsPinVerified(false);
-
     } catch (error) {
       if (error instanceof Error) {
         console.error('Error sending PIN:', error.message);
         Alert.alert('Error', 'Failed to send PIN. Please try again.');
       } else {
-        console.error('Unexpected error', error);
+        console.error('Unexpected error during sendVerificationPin', error);
       }
     }
   };
@@ -226,28 +255,25 @@ export default function AccountScreen() {
     try {
       const activePin = await checkActivePin();
       if (activePin) {
-        // Show the message box only if a valid PIN is already active
-        Alert.alert('Verification PIN Sent', `Please check your email for the active PIN: ${email}`, [
+        Alert.alert('Verification PIN Sent', `Please check your email for the active PIN: ${newEmail}`, [
           {
             text: 'Go to Keypad',
             onPress: () => {
-              router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail: email } });
-              setInitialKeypadEntry(false); // Avoid showing the message box again on the keypad screen
+              router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail: newEmail } });
+              setInitialKeypadEntry(false);
             },
           },
         ]);
         return;
       } else {
-        // If no valid PIN is found, generate a new one and directly go to the keypad
         await sendVerificationPin();
       }
-
     } catch (error) {
       if (error instanceof Error) {
         console.error('Error verifying PIN:', error.message);
         Alert.alert('Error', 'Failed to verify PIN. Please try again.');
       } else {
-        console.error('Unexpected error', error);
+        console.error('Unexpected error during verifyPin', error);
       }
     }
   };
@@ -297,9 +323,10 @@ export default function AccountScreen() {
       }
     } catch (error) {
       if (error instanceof Error) {
+        console.error('Error updating email:', error.message);
         Alert.alert('Error', `Failed to update email: ${error.message}`);
       } else {
-        console.error('Unexpected error', error);
+        console.error('Unexpected error during handleEmailChange', error);
       }
     }
   };
@@ -369,7 +396,12 @@ export default function AccountScreen() {
           />
 
           {!isPinSent ? (
-            <Button status="primary" onPress={sendVerificationPin} style={styles.button}>
+            <Button
+              status="primary"
+              onPress={sendVerificationPin}
+              style={styles.button}
+              disabled={!newEmail || !isEmailValid || !password}
+            >
               Request Verification PIN
             </Button>
           ) : (
