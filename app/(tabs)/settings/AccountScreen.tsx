@@ -402,7 +402,7 @@ export default function AccountScreen() {
               style={styles.button}
               disabled={!newEmail || !isEmailValid || !password}
             >
-              Request Verification PIN
+              Verify Email Change
             </Button>
           ) : (
             <>
@@ -419,7 +419,7 @@ export default function AccountScreen() {
         </>
       ) : (
         <Button status="warning" onPress={() => setIsEditing(true)} style={styles.button}>
-          Edit Email
+          Change e-mail
         </Button>
       )}
     </Layout>

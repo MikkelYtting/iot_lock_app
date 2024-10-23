@@ -33,11 +33,13 @@ export default function PinVerificationScreen({
       if (userEmail) {
         // Show the alert message box only on the first entry to the screen
         Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your email: ${userEmail}`);
+      } else {
+        Alert.alert('Error', 'User email is not available. Please try again.');
       }
       setInitialKeypadEntry(false); // Reset flag to avoid showing the message again
     }
   }, [initialKeypadEntry, userEmail, isNavigatedFromVerification]);
-
+  
   useEffect(() => {
     const checkClipboard = async () => {
       const clipboardContent = await Clipboard.getString();
@@ -73,8 +75,8 @@ export default function PinVerificationScreen({
   const sendVerificationPin = async () => {
     const user = auth.currentUser;
     if (!user) {
-        Alert.alert('Error', 'User is not authenticated.');
-        return;
+      Alert.alert('Error', 'User is not authenticated.');
+      return;
     }
 
     const generatedPin = Math.floor(10000 + Math.random() * 90000).toString(); // Ensure it's a 5-digit PIN
