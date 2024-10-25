@@ -4,18 +4,17 @@ import { Layout, Icon, CheckBox, Button } from '@ui-kitten/components';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { auth, firestore } from '../../../firebase';
+import { useRouter, useLocalSearchParams } from 'expo-router'; // Use useLocalSearchParams
 
 const { width } = Dimensions.get('window');
 
 interface PinVerificationScreenProps {
   onVerify: () => void;
-  userEmail: string; // Pass the user's email as a prop
   isNavigatedFromVerification: boolean; // Track if the user came from the "Go to Keypad" button
 }
 
 export default function PinVerificationScreen({
   onVerify,
-  userEmail,
   isNavigatedFromVerification,
 }: PinVerificationScreenProps) {
   const [pin, setPin] = useState('');
@@ -26,10 +25,12 @@ export default function PinVerificationScreen({
   const [isModalVisible, setModalVisible] = useState(false); // Modal visibility state
   const [initialKeypadEntry, setInitialKeypadEntry] = useState(true); // Flag for showing the message only once
   const maxAttempts = 10;
+  
+  const { userEmail } = useLocalSearchParams(); // Use useLocalSearchParams to get the userEmail from route
 
   // Log userEmail on mount to debug its state
   useEffect(() => {
-    console.log('PinVerificationScreen userEmail:', userEmail);
+    console.log('PinVerificationScreen mounted with userEmail:', userEmail);
   }, [userEmail]);
 
   // Display message only if the user did not come from the "Go to Keypad" button
@@ -40,6 +41,7 @@ export default function PinVerificationScreen({
         Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your email: ${userEmail}`);
       } else {
         Alert.alert('Error', 'User email is not available. Please try again.');
+        console.error('userEmail is not available:', userEmail);
       }
       setInitialKeypadEntry(false); // Reset flag to avoid showing the message again
     }
@@ -81,11 +83,13 @@ export default function PinVerificationScreen({
     const user = auth.currentUser;
     if (!user) {
       Alert.alert('Error', 'User is not authenticated.');
+      console.error('sendVerificationPin: No authenticated user found.');
       return;
     }
 
     if (!userEmail) {
       Alert.alert('Error', 'Email is not available. Please try again.');
+      console.error('sendVerificationPin called with missing userEmail:', userEmail);
       return;
     }
 
@@ -115,7 +119,6 @@ export default function PinVerificationScreen({
       }
 
       Alert.alert('PIN Sent', 'A new verification PIN has been sent to your email.');
-
     } catch (error) {
       if (error instanceof Error) {
         console.error('Error sending PIN:', error.message);
@@ -128,7 +131,10 @@ export default function PinVerificationScreen({
 
   const submitPin = async () => {
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user) {
+      console.error('submitPin: User is not authenticated');
+      return;
+    }
 
     try {
       console.log('Verifying PIN for user:', user.uid);
@@ -210,7 +216,7 @@ export default function PinVerificationScreen({
           >
             {index < pin.length ? <View style={styles.filledCircle} /> : null}
           </View>
-        ))} 
+        ))}
       </View>
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
