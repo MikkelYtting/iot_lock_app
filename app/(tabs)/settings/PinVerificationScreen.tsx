@@ -4,13 +4,13 @@ import { Layout, Icon, CheckBox, Button } from '@ui-kitten/components';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { auth, firestore } from '../../../firebase';
-import { useRouter, useLocalSearchParams } from 'expo-router'; // Use useLocalSearchParams
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
 interface PinVerificationScreenProps {
   onVerify: () => void;
-  isNavigatedFromVerification: boolean; // Track if the user came from the "Go to Keypad" button
+  isNavigatedFromVerification: boolean;
 }
 
 export default function PinVerificationScreen({
@@ -21,31 +21,31 @@ export default function PinVerificationScreen({
   const pinLength = 5;
   const [attempts, setAttempts] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
-  const [hasAgreed, setHasAgreed] = useState(false); // Checkbox state
-  const [isModalVisible, setModalVisible] = useState(false); // Modal visibility state
-  const [initialKeypadEntry, setInitialKeypadEntry] = useState(true); // Flag for showing the message only once
+  const [hasAgreed, setHasAgreed] = useState(false);
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [initialKeypadEntry, setInitialKeypadEntry] = useState(true);
+  const [activationSent, setActivationSent] = useState(false);
+
   const maxAttempts = 10;
-  
-  const { userEmail } = useLocalSearchParams(); // Use useLocalSearchParams to get the userEmail from route
+  const { newEmail } = useLocalSearchParams(); // Only fetch newEmail when needed
+  const originalEmail = auth.currentUser?.email; // Always use current authenticated email as original email
 
-  // Log userEmail on mount to debug its state
+  // Log originalEmail on mount to debug its state
   useEffect(() => {
-    console.log('PinVerificationScreen mounted with userEmail:', userEmail);
-  }, [userEmail]);
+    console.log('PinVerificationScreen mounted with originalEmail:', originalEmail);
+  }, [originalEmail]);
 
-  // Display message only if the user did not come from the "Go to Keypad" button
   useEffect(() => {
     if (initialKeypadEntry && !isNavigatedFromVerification) {
-      if (userEmail) {
-        // Show the alert message box only on the first entry to the screen
-        Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your email: ${userEmail}`);
+      if (originalEmail) {
+        Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your email: ${originalEmail}`);
       } else {
         Alert.alert('Error', 'User email is not available. Please try again.');
-        console.error('userEmail is not available:', userEmail);
+        console.error('originalEmail is not available:', originalEmail);
       }
-      setInitialKeypadEntry(false); // Reset flag to avoid showing the message again
+      setInitialKeypadEntry(false);
     }
-  }, [initialKeypadEntry, userEmail, isNavigatedFromVerification]);
+  }, [initialKeypadEntry, originalEmail, isNavigatedFromVerification]);
 
   useEffect(() => {
     const checkClipboard = async () => {
@@ -87,13 +87,13 @@ export default function PinVerificationScreen({
       return;
     }
 
-    if (!userEmail) {
+    if (!originalEmail) {
       Alert.alert('Error', 'Email is not available. Please try again.');
-      console.error('sendVerificationPin called with missing userEmail:', userEmail);
+      console.error('sendVerificationPin called with missing originalEmail:', originalEmail);
       return;
     }
 
-    const generatedPin = Math.floor(10000 + Math.random() * 90000).toString(); // Ensure it's a 5-digit PIN
+    const generatedPin = Math.floor(10000 + Math.random() * 90000).toString();
 
     try {
       const expirationTime = new Date();
@@ -110,7 +110,7 @@ export default function PinVerificationScreen({
       console.log(`PIN (${generatedPin}) stored in Firestore for user: ${user.uid}`);
 
       const emailResponse = await fetch(
-        `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${userEmail}&pin=${generatedPin}`
+        `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${originalEmail}&pin=${generatedPin}`
       );
 
       if (!emailResponse.ok) {
@@ -158,7 +158,7 @@ export default function PinVerificationScreen({
         return;
       }
 
-      const createdAtDate = createdAt.toDate(); // Convert Firestore timestamp to JS Date
+      const createdAtDate = createdAt.toDate();
       const timeDiff = now.getTime() - createdAtDate.getTime();
 
       console.log('Stored PIN:', storedPin, 'Entered PIN:', pin);
@@ -167,11 +167,11 @@ export default function PinVerificationScreen({
       // Check if the stored PIN is within the expiration time (1 minute)
       const oneMinute = 60 * 1000;
       if (pin === storedPin && timeDiff <= oneMinute) {
-        setModalVisible(true); // Show modal instead of Alert
+        setModalVisible(true);
+        setActivationSent(true);
 
-        await deleteDoc(pinDocRef); // Delete PIN after successful verification
+        await deleteDoc(pinDocRef);
       } else if (timeDiff > oneMinute) {
-        // PIN has expired
         Alert.alert(
           'PIN Expired',
           'Your PIN has expired. Would you like to request a new one?',
@@ -183,13 +183,13 @@ export default function PinVerificationScreen({
             {
               text: 'Request New PIN',
               onPress: () => {
-                sendVerificationPin(); // Call sendVerificationPin to request a new PIN
+                sendVerificationPin();
               },
             },
           ],
           { cancelable: false }
         );
-        await deleteDoc(pinDocRef); // Delete expired PIN
+        await deleteDoc(pinDocRef);
         console.log('PIN expired and deleted for user:', user.uid);
       } else {
         Alert.alert('Error', 'Invalid PIN. Please try again.');
@@ -204,8 +204,9 @@ export default function PinVerificationScreen({
     <Layout style={styles.container}>
       <Text style={styles.title}>PIN VERIFICATION</Text>
 
+      {/* Always show the original email in the instructions */}
       <Text style={styles.instructions}>
-        Check {userEmail} for the PIN code.
+        Check {originalEmail} for the PIN code.
       </Text>
 
       <View style={styles.pinContainer}>
@@ -266,9 +267,15 @@ export default function PinVerificationScreen({
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalText}>
-              Please verify the email change on the new email.
-            </Text>
+            {activationSent ? (
+              <Text style={styles.modalText}>
+                An activation link has been sent to your new email address: {newEmail}.
+              </Text>
+            ) : (
+              <Text style={styles.modalText}>
+                Please verify the email change on the new email.
+              </Text>
+            )}
 
             {/* Checkbox for Agreement */}
             <CheckBox
@@ -282,10 +289,10 @@ export default function PinVerificationScreen({
             <Button
               onPress={() => {
                 auth.signOut();
-                setModalVisible(false); // Close modal after logout
+                setModalVisible(false);
               }}
               style={styles.logoutButton}
-              disabled={!hasAgreed} // Disable the button until the checkbox is checked
+              disabled={!hasAgreed}
             >
               Log me out
             </Button>

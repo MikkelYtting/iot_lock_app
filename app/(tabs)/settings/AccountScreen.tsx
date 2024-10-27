@@ -187,70 +187,70 @@ export default function AccountScreen() {
     }
   };
 
-// Inside the function where you navigate to PinVerificationScreen
-const sendVerificationPin = async () => {
-  const user = auth.currentUser;
-  if (!user) {
-    Alert.alert('Error', 'User is not authenticated.');
-    return;
-  }
-
-  const isReauthenticated = await reauthenticateUser();
-  if (!isReauthenticated) return;
-
-  const userEmail = user.email; // Ensure the current authenticated user's email is used
-
-  if (!userEmail) {
-    Alert.alert('Error', 'Email is not available.');
-    console.error('Email is undefined or empty.');
-    return;
-  }
-
-  try {
-    const generatedPin = Math.floor(10000 + Math.random() * 90000).toString();
-    setPin(generatedPin);
-
-    const expirationTime = new Date();
-    expirationTime.setMinutes(expirationTime.getMinutes() + 1);
-
-    const pinDocRef = doc(firestore, 'pins', user.uid);
-    await setDoc(pinDocRef, {
-      pin: generatedPin,
-      createdAt: new Date(),
-      ttl: expirationTime,
-      userId: user.uid,
-    });
-
-    console.log(`PIN (${generatedPin}) stored in Firestore for user: ${user.uid}`);
-
-    const emailResponse = await fetch(
-      `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${userEmail}&pin=${generatedPin}`
-    );
-
-    if (!emailResponse.ok) {
-      const errorText = await emailResponse.text();
-      throw new Error(`Failed to send email: ${errorText}`);
+  const sendVerificationPin = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert('Error', 'User is not authenticated.');
+      return;
     }
 
-    console.log('Navigating to PinVerificationScreen with userEmail:', userEmail);
-    router.push({
-      pathname: '/(tabs)/settings/PinVerificationScreen',
-      params: { userEmail: userEmail },
-    });
+    const isReauthenticated = await reauthenticateUser();
+    if (!isReauthenticated) return;
 
-    setIsPinSent(true);
-    setEnteredPin('');
-    setIsPinVerified(false);
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error('Error sending PIN:', error.message);
-      Alert.alert('Error', 'Failed to send PIN. Please try again.');
-    } else {
-      console.error('Unexpected error during sendVerificationPin', error);
+    const userEmail = user.email; // Always use the original authenticated user's email
+
+    if (!userEmail) {
+      Alert.alert('Error', 'Email is not available.');
+      console.error('Email is undefined or empty.');
+      return;
     }
-  }
-};
 
+    if (!isEmailValid || !newEmail) {
+      Alert.alert('Error', 'Please enter a valid new email before requesting a PIN.');
+      return;
+    }
+
+    try {
+      const generatedPin = Math.floor(10000 + Math.random() * 90000).toString();
+      setPin(generatedPin);
+
+      const expirationTime = new Date();
+      expirationTime.setMinutes(expirationTime.getMinutes() + 1);
+
+      const pinDocRef = doc(firestore, 'pins', user.uid);
+      await setDoc(pinDocRef, {
+        pin: generatedPin,
+        createdAt: new Date(),
+        ttl: expirationTime,
+        userId: user.uid,
+      });
+
+      console.log(`PIN (${generatedPin}) stored in Firestore for user: ${user.uid}`);
+
+      const emailResponse = await fetch(
+        `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${userEmail}&pin=${generatedPin}`
+      );
+
+      if (!emailResponse.ok) {
+        const errorText = await emailResponse.text();
+        throw new Error(`Failed to send email: ${errorText}`);
+      }
+
+      // Pass the original email as userEmail to the verification screen with the flag for original email
+      router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail, isOriginalEmail: 'true' } });
+
+      setIsPinSent(true);
+      setEnteredPin('');
+      setIsPinVerified(false);
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('Error sending PIN:', error.message);
+        Alert.alert('Error', 'Failed to send PIN. Please try again.');
+      } else {
+        console.error('Unexpected error during sendVerificationPin', error);
+      }
+    }
+  };
 
   const verifyPin = async () => {
     const user = auth.currentUser;
@@ -262,12 +262,12 @@ const sendVerificationPin = async () => {
     try {
       const activePin = await checkActivePin();
       if (activePin) {
-        Alert.alert('Verification PIN Sent', `Please check your email for the active PIN: ${newEmail}`, [
+        Alert.alert('Verification PIN Sent', `Please check your email for the active PIN: ${email}`, [
           {
             text: 'Go to Keypad',
             onPress: () => {
-              console.log('Navigating to PinVerificationScreen with newEmail:', newEmail); // Debug log for navigation
-              router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail: newEmail } });
+              console.log('Navigating to PinVerificationScreen with original email:', email); // Debug log for navigation
+              router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail: email, isOriginalEmail: 'true' } });
               setInitialKeypadEntry(false);
             },
           },
