@@ -27,16 +27,19 @@ export default function PinVerificationScreen({
   const [activationSent, setActivationSent] = useState(false);
 
   const maxAttempts = 10;
-  const { newEmail } = useLocalSearchParams(); // Only fetch newEmail when needed
+  const { newEmail, userEmail, isOriginalEmail, initialEntry } = useLocalSearchParams();
   const originalEmail = auth.currentUser?.email; // Always use current authenticated email as original email
+
+  const router = useRouter();
 
   // Log originalEmail on mount to debug its state
   useEffect(() => {
     console.log('PinVerificationScreen mounted with originalEmail:', originalEmail);
   }, [originalEmail]);
 
+  // Show the alert only on the initial keypad entry
   useEffect(() => {
-    if (initialKeypadEntry && !isNavigatedFromVerification) {
+    if (initialKeypadEntry && !isNavigatedFromVerification && initialEntry === 'true') {
       if (originalEmail) {
         Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your email: ${originalEmail}`);
       } else {
@@ -45,8 +48,9 @@ export default function PinVerificationScreen({
       }
       setInitialKeypadEntry(false);
     }
-  }, [initialKeypadEntry, originalEmail, isNavigatedFromVerification]);
+  }, [initialKeypadEntry, originalEmail, isNavigatedFromVerification, initialEntry]);
 
+  // Check the clipboard for a 5-digit number and prompt the user
   useEffect(() => {
     const checkClipboard = async () => {
       const clipboardContent = await Clipboard.getString();
@@ -67,18 +71,21 @@ export default function PinVerificationScreen({
     checkClipboard();
   }, []);
 
+  // Handle digit press on the keypad
   const handleDigitPress = (digit: string) => {
     if (pin.length < pinLength && attempts < maxAttempts) {
       setPin((prev) => prev + digit);
     }
   };
 
+  // Handle backspace press on the keypad
   const handleBackspace = () => {
     if (attempts < maxAttempts) {
       setPin((prev) => prev.slice(0, -1));
     }
   };
 
+  // Send a new verification PIN
   const sendVerificationPin = async () => {
     const user = auth.currentUser;
     if (!user) {
@@ -129,6 +136,7 @@ export default function PinVerificationScreen({
     }
   };
 
+  // Submit the entered PIN for verification
   const submitPin = async () => {
     const user = auth.currentUser;
     if (!user) {

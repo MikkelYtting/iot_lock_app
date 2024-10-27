@@ -237,11 +237,15 @@ export default function AccountScreen() {
       }
 
       // Pass the original email as userEmail to the verification screen with the flag for original email
-      router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail, isOriginalEmail: 'true' } });
+      router.push({
+        pathname: '/(tabs)/settings/PinVerificationScreen',
+        params: { userEmail, isOriginalEmail: 'true', initialEntry: 'true' },
+      });
 
       setIsPinSent(true);
       setEnteredPin('');
       setIsPinVerified(false);
+      setInitialKeypadEntry(false); // Ensure first entry alert doesn't trigger again
     } catch (error) {
       if (error instanceof Error) {
         console.error('Error sending PIN:', error.message);
@@ -266,9 +270,10 @@ export default function AccountScreen() {
           {
             text: 'Go to Keypad',
             onPress: () => {
-              console.log('Navigating to PinVerificationScreen with original email:', email); // Debug log for navigation
-              router.push({ pathname: '/(tabs)/settings/PinVerificationScreen', params: { userEmail: email, isOriginalEmail: 'true' } });
-              setInitialKeypadEntry(false);
+              router.push({
+                pathname: '/(tabs)/settings/PinVerificationScreen',
+                params: { userEmail: email, isOriginalEmail: 'true', isNavigatedFromVerification: 'true' },
+              });
             },
           },
         ]);
