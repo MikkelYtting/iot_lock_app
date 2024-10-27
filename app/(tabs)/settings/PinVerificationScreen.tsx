@@ -6,7 +6,7 @@ import { doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { auth, firestore } from '../../../firebase';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 interface PinVerificationScreenProps {
   onVerify: () => void;
@@ -338,54 +338,58 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   pinCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: width * 0.05,
+    height: width * 0.05,
+    borderRadius: (width * 0.05) / 2,
     borderWidth: 2,
-    marginHorizontal: 10,
+    marginHorizontal: width * 0.02,
     justifyContent: 'center',
     alignItems: 'center',
   },
   filledCircle: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: width * 0.03,
+    height: width * 0.03,
+    borderRadius: (width * 0.03) / 2,
     backgroundColor: 'red',
   },
   keypadContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    width: width * 0.6,
+    width: width * 0.7,
     justifyContent: 'center',
     alignItems: 'center',
   },
   keypadButton: {
-    width: '30%',
-    padding: 15,
+    width: '25%',
+    paddingVertical: width * 0.03,
     justifyContent: 'center',
     alignItems: 'center',
-    margin: 5,
+    margin: width * 0.015,
     backgroundColor: '#333',
     borderRadius: 10,
   },
+  insertButton: {
+    backgroundColor: '#444',
+  },
   keypadText: {
-    fontSize: 24,
+    fontSize: width * 0.06,
     color: '#ffffff',
   },
   iconStyle: {
-    width: 24,
-    height: 24,
+    width: width * 0.07,
+    height: width * 0.07,
     tintColor: 'red',
   },
   submitButton: {
     backgroundColor: 'red',
-    padding: 15,
+    paddingVertical: width * 0.04,
+    paddingHorizontal: width * 0.2,
     borderRadius: 10,
     marginTop: 30,
   },
   submitButtonText: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: width * 0.05,
   },
   errorText: {
     color: '#ff4d4d',
