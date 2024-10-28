@@ -25,10 +25,13 @@ export default function PinVerificationScreen({
   const [isModalVisible, setModalVisible] = useState(false);
   const [initialKeypadEntry, setInitialKeypadEntry] = useState(true);
   const [activationSent, setActivationSent] = useState(false);
+  const [clipboardPin, setClipboardPin] = useState('');
+  const [promptedForPin, setPromptedForPin] = useState(false);
+  const [showPasteHint, setShowPasteHint] = useState(false); // State to show paste hint
 
   const maxAttempts = 10;
   const { newEmail, userEmail, isOriginalEmail, initialEntry } = useLocalSearchParams();
-  const originalEmail = auth.currentUser?.email; // Always use current authenticated email as original email
+  const originalEmail = auth.currentUser?.email;
 
   const router = useRouter();
 
@@ -41,7 +44,10 @@ export default function PinVerificationScreen({
   useEffect(() => {
     if (initialKeypadEntry && !isNavigatedFromVerification && initialEntry === 'true') {
       if (originalEmail) {
-        Alert.alert('Verification PIN Sent', `A verification PIN has been sent to your email: ${originalEmail}`);
+        Alert.alert(
+          'Verification PIN Sent',
+          `A verification PIN has been sent to your email: ${originalEmail}`
+        );
       } else {
         Alert.alert('Error', 'User email is not available. Please try again.');
         console.error('originalEmail is not available:', originalEmail);
@@ -50,26 +56,44 @@ export default function PinVerificationScreen({
     }
   }, [initialKeypadEntry, originalEmail, isNavigatedFromVerification, initialEntry]);
 
-  // Check the clipboard for a 5-digit number and prompt the user
+  // Function to check clipboard content and insert PIN if valid
+  const handleInsertFromClipboard = async () => {
+    const clipboardContent = await Clipboard.getString();
+    if (/^\d{5}$/.test(clipboardContent)) {
+      setPin(clipboardContent.slice(0, pinLength));
+      setClipboardPin(clipboardContent);
+      setPromptedForPin(true);
+      setShowPasteHint(false); // Hide hint after pasting
+    } else {
+      Alert.alert('No Valid PIN', 'Clipboard does not contain a valid 5-digit PIN.');
+    }
+  };
+
+  // Function to check clipboard and show paste hint if a valid PIN is detected
+  const checkClipboard = async () => {
+    const clipboardContent = await Clipboard.getString();
+    if (
+      /^\d{5}$/.test(clipboardContent) &&
+      clipboardContent !== clipboardPin &&
+      !promptedForPin
+    ) {
+      setClipboardPin(clipboardContent);
+      setShowPasteHint(true); // Show paste hint when a valid PIN is detected
+    } else if (clipboardContent !== clipboardPin) {
+      setClipboardPin('');
+      setPromptedForPin(false);
+      setShowPasteHint(false); // Hide hint if clipboard changes to an invalid PIN
+    }
+  };
+
+  // Automatic clipboard check
   useEffect(() => {
-    const checkClipboard = async () => {
-      const clipboardContent = await Clipboard.getString();
-      if (/^\d{5}$/.test(clipboardContent)) {
-        Alert.alert(
-          'Detected PIN',
-          `A PIN was detected in your clipboard: ${clipboardContent}. Do you want to use it?`,
-          [
-            { text: 'No' },
-            {
-              text: 'Yes',
-              onPress: () => setPin(clipboardContent.slice(0, pinLength)),
-            },
-          ]
-        );
-      }
-    };
-    checkClipboard();
-  }, []);
+    const clipboardInterval = setInterval(() => {
+      checkClipboard();
+    }, 3000); // Check every 3 seconds
+
+    return () => clearInterval(clipboardInterval);
+  }, [clipboardPin, promptedForPin]);
 
   // Handle digit press on the keypad
   const handleDigitPress = (digit: string) => {
@@ -213,9 +237,7 @@ export default function PinVerificationScreen({
       <Text style={styles.title}>PIN VERIFICATION</Text>
 
       {/* Always show the original email in the instructions */}
-      <Text style={styles.instructions}>
-        Check {originalEmail} for the PIN code.
-      </Text>
+      <Text style={styles.instructions}>Check {originalEmail} for the PIN code.</Text>
 
       <View style={styles.pinContainer}>
         {Array.from({ length: pinLength }).map((_, index) => (
@@ -227,6 +249,13 @@ export default function PinVerificationScreen({
           </View>
         ))}
       </View>
+
+      {/* Show Paste hint if a valid PIN is detected in clipboard */}
+      {showPasteHint && (
+        <TouchableOpacity onPress={handleInsertFromClipboard}>
+          <Text style={styles.pasteHintText}>Paste</Text>
+        </TouchableOpacity>
+      )}
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
@@ -241,7 +270,16 @@ export default function PinVerificationScreen({
             <Text style={styles.keypadText}>{digit}</Text>
           </TouchableOpacity>
         ))}
-        <View style={[styles.keypadButton, { backgroundColor: 'transparent' }]} />
+
+        {/* Insert Clipboard Button with Icon */}
+        <TouchableOpacity
+          style={[styles.keypadButton, styles.insertButton]}
+          onPress={handleInsertFromClipboard}
+          disabled={attempts >= maxAttempts}
+        >
+          <Icon name="clipboard-outline" pack="eva" style={styles.iconStyle} />
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.keypadButton}
           onPress={() => handleDigitPress('0')}
@@ -249,6 +287,7 @@ export default function PinVerificationScreen({
         >
           <Text style={styles.keypadText}>0</Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.keypadButton}
           onPress={handleBackspace}
@@ -261,7 +300,7 @@ export default function PinVerificationScreen({
       <TouchableOpacity
         style={styles.submitButton}
         onPress={submitPin}
-        disabled={attempts >= maxAttempts}
+        disabled={attempts >= maxAttempts || pin.length !== pinLength}
       >
         <Text style={styles.submitButtonText}>Submit PIN</Text>
       </TouchableOpacity>
@@ -280,18 +319,13 @@ export default function PinVerificationScreen({
                 An activation link has been sent to your new email address: {newEmail}.
               </Text>
             ) : (
-              <Text style={styles.modalText}>
-                Please verify the email change on the new email.
-              </Text>
+              <Text style={styles.modalText}>Please verify the email change on the new email.</Text>
             )}
 
             {/* Checkbox for Agreement */}
-            <CheckBox
-              checked={hasAgreed}
-              onChange={setHasAgreed}
-              style={styles.checkbox}
-            >
-              I understand that I need to click the verification link sent to my new email for the changes to take effect.
+            <CheckBox checked={hasAgreed} onChange={setHasAgreed} style={styles.checkbox}>
+              I understand that I need to click the verification link sent to my new email for the
+              changes to take effect.
             </CheckBox>
 
             <Button
@@ -316,8 +350,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
     paddingHorizontal: 20,
+    backgroundColor: '#1a1a1a',
   },
   title: {
     fontSize: 24,
@@ -335,7 +369,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
   },
   pinCircle: {
     width: width * 0.05,
@@ -355,7 +389,7 @@ const styles = StyleSheet.create({
   keypadContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    width: width * 0.7,
+    width: width * 0.8,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -371,6 +405,12 @@ const styles = StyleSheet.create({
   insertButton: {
     backgroundColor: '#444',
   },
+  pasteHintText: {
+    color: '#ffffff',
+    fontSize: 16,
+    marginVertical: 10,
+    textAlign: 'center',
+  },
   keypadText: {
     fontSize: width * 0.06,
     color: '#ffffff',
@@ -378,7 +418,7 @@ const styles = StyleSheet.create({
   iconStyle: {
     width: width * 0.07,
     height: width * 0.07,
-    tintColor: 'red',
+    tintColor: '#ffffff',
   },
   submitButton: {
     backgroundColor: 'red',
@@ -400,18 +440,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 22,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    width: '80%',
+    width: '85%',
     backgroundColor: '#ffffff',
     borderRadius: 10,
-    padding: 20,
+    padding: 25,
     alignItems: 'center',
+    elevation: 5,
   },
   modalText: {
     fontSize: 18,
-    marginBottom: 20,
+    marginBottom: 15,
     textAlign: 'center',
   },
   checkbox: {
@@ -420,5 +462,6 @@ const styles = StyleSheet.create({
   logoutButton: {
     marginTop: 20,
     backgroundColor: 'red',
+    borderColor: 'red',
   },
 });
