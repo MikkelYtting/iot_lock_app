@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Modal, Alert } from 'react-native';
-import { Layout, Icon, CheckBox, Button } from '@ui-kitten/components';
+import { Layout, Icon, CheckBox, Button, Tooltip } from '@ui-kitten/components';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { auth, firestore } from '../../../firebase';
@@ -27,7 +27,7 @@ export default function PinVerificationScreen({
   const [activationSent, setActivationSent] = useState(false);
   const [clipboardPin, setClipboardPin] = useState('');
   const [promptedForPin, setPromptedForPin] = useState(false);
-  const [showPasteHint, setShowPasteHint] = useState(false); // State to show paste hint
+  const [showPasteHint, setShowPasteHint] = useState(false);
 
   const maxAttempts = 10;
   const { newEmail, userEmail, isOriginalEmail, initialEntry } = useLocalSearchParams();
@@ -35,12 +35,10 @@ export default function PinVerificationScreen({
 
   const router = useRouter();
 
-  // Log originalEmail on mount to debug its state
   useEffect(() => {
-    console.log('PinVerificationScreen mounted with originalEmail:', originalEmail);
+    console.log('Component mounted with originalEmail:', originalEmail);
   }, [originalEmail]);
 
-  // Show the alert only on the initial keypad entry
   useEffect(() => {
     if (initialKeypadEntry && !isNavigatedFromVerification && initialEntry === 'true') {
       if (originalEmail) {
@@ -48,68 +46,94 @@ export default function PinVerificationScreen({
           'Verification PIN Sent',
           `A verification PIN has been sent to your email: ${originalEmail}`
         );
+        console.log('Verification PIN sent to:', originalEmail);
       } else {
         Alert.alert('Error', 'User email is not available. Please try again.');
-        console.error('originalEmail is not available:', originalEmail);
+        console.error('Original email is not available:', originalEmail);
       }
       setInitialKeypadEntry(false);
     }
   }, [initialKeypadEntry, originalEmail, isNavigatedFromVerification, initialEntry]);
 
-  // Function to check clipboard content and insert PIN if valid
   const handleInsertFromClipboard = async () => {
-    const clipboardContent = await Clipboard.getString();
-    if (/^\d{5}$/.test(clipboardContent)) {
-      setPin(clipboardContent.slice(0, pinLength));
-      setClipboardPin(clipboardContent);
-      setPromptedForPin(true);
-      setShowPasteHint(false); // Hide hint after pasting
-    } else {
-      Alert.alert('No Valid PIN', 'Clipboard does not contain a valid 5-digit PIN.');
+    try {
+      const clipboardContent = await Clipboard.getString();
+      console.log('Trying to insert from clipboard. Clipboard content:', clipboardContent);
+      if (/^\d{5}$/.test(clipboardContent.trim())) {
+        console.log('Valid 5-digit PIN detected from clipboard, setting pin state');
+        setPin(clipboardContent.slice(0, pinLength)); // Replaces all existing numbers
+        setClipboardPin(clipboardContent);
+        setPromptedForPin(true);
+        setShowPasteHint(false);
+        console.log('Auto-submitting PIN after paste');
+        submitPin();
+      } else {
+        console.log('Invalid PIN detected from clipboard:', clipboardContent);
+        Alert.alert('No Valid PIN', 'Clipboard does not contain a valid 5-digit PIN.');
+      }
+    } catch (error) {
+      console.error('Error reading clipboard:', error);
     }
   };
 
-  // Function to check clipboard and show paste hint if a valid PIN is detected
   const checkClipboard = async () => {
-    const clipboardContent = await Clipboard.getString();
-    if (
-      /^\d{5}$/.test(clipboardContent) &&
-      clipboardContent !== clipboardPin &&
-      !promptedForPin
-    ) {
-      setClipboardPin(clipboardContent);
-      setShowPasteHint(true); // Show paste hint when a valid PIN is detected
-    } else if (clipboardContent !== clipboardPin) {
-      setClipboardPin('');
-      setPromptedForPin(false);
-      setShowPasteHint(false); // Hide hint if clipboard changes to an invalid PIN
+    try {
+      const clipboardContent = await Clipboard.getString();
+      console.log('Checking clipboard. Clipboard content:', clipboardContent);
+      if (
+        /^\d{5}$/.test(clipboardContent.trim()) &&
+        clipboardContent !== clipboardPin &&
+        !promptedForPin
+      ) {
+        console.log('New valid clipboard PIN detected. Storing as current clipboardPin');
+        setClipboardPin(clipboardContent);
+        setShowPasteHint(true);
+      } else if (clipboardContent !== clipboardPin) {
+        console.log('Clipboard content changed but not a valid PIN');
+        setClipboardPin('');
+        setPromptedForPin(false);
+        setShowPasteHint(false);
+      } else {
+        console.log('No change in clipboard or still invalid');
+      }
+    } catch (error) {
+      console.error('Error checking clipboard:', error);
     }
   };
 
-  // Automatic clipboard check
   useEffect(() => {
+    console.log('Setting up clipboard interval check');
     const clipboardInterval = setInterval(() => {
+      console.log('Running clipboard interval check');
       checkClipboard();
-    }, 3000); // Check every 3 seconds
+    }, 3000);
 
-    return () => clearInterval(clipboardInterval);
+    return () => {
+      console.log('Clearing clipboard interval check');
+      clearInterval(clipboardInterval);
+    };
   }, [clipboardPin, promptedForPin]);
 
-  // Handle digit press on the keypad
   const handleDigitPress = (digit: string) => {
+    console.log('Digit pressed:', digit);
     if (pin.length < pinLength && attempts < maxAttempts) {
+      console.log(`Appending digit ${digit} to PIN`);
       setPin((prev) => prev + digit);
+    } else {
+      console.log('Cannot add digit: PIN length or attempt limit reached');
     }
   };
 
-  // Handle backspace press on the keypad
   const handleBackspace = () => {
+    console.log('Backspace pressed');
     if (attempts < maxAttempts) {
+      console.log('Removing last digit from PIN');
       setPin((prev) => prev.slice(0, -1));
+    } else {
+      console.log('Cannot remove digit: attempt limit reached');
     }
   };
 
-  // Send a new verification PIN
   const sendVerificationPin = async () => {
     const user = auth.currentUser;
     if (!user) {
@@ -125,6 +149,7 @@ export default function PinVerificationScreen({
     }
 
     const generatedPin = Math.floor(10000 + Math.random() * 90000).toString();
+    console.log('Generated PIN:', generatedPin);
 
     try {
       const expirationTime = new Date();
@@ -138,7 +163,7 @@ export default function PinVerificationScreen({
         userId: user.uid,
       });
 
-      console.log(`PIN (${generatedPin}) stored in Firestore for user: ${user.uid}`);
+      console.log(`Stored generated PIN (${generatedPin}) in Firestore for user: ${user.uid}`);
 
       const emailResponse = await fetch(
         `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${originalEmail}&pin=${generatedPin}`
@@ -150,6 +175,7 @@ export default function PinVerificationScreen({
       }
 
       Alert.alert('PIN Sent', 'A new verification PIN has been sent to your email.');
+      console.log('Email sent successfully to:', originalEmail);
     } catch (error) {
       if (error instanceof Error) {
         console.error('Error sending PIN:', error.message);
@@ -160,7 +186,6 @@ export default function PinVerificationScreen({
     }
   };
 
-  // Submit the entered PIN for verification
   const submitPin = async () => {
     const user = auth.currentUser;
     if (!user) {
@@ -171,7 +196,6 @@ export default function PinVerificationScreen({
     try {
       console.log('Verifying PIN for user:', user.uid);
 
-      // Fetch the stored PIN from Firestore
       const pinDocRef = doc(firestore, 'pins', user.uid);
       const pinDoc = await getDoc(pinDocRef);
 
@@ -194,16 +218,18 @@ export default function PinVerificationScreen({
       const timeDiff = now.getTime() - createdAtDate.getTime();
 
       console.log('Stored PIN:', storedPin, 'Entered PIN:', pin);
-      console.log('Time since PIN creation:', timeDiff / 1000, 'seconds');
+      console.log('Time since PIN creation (seconds):', timeDiff / 1000);
 
-      // Check if the stored PIN is within the expiration time (1 minute)
       const oneMinute = 60 * 1000;
       if (pin === storedPin && timeDiff <= oneMinute) {
+        console.log('PIN is correct and within the valid time window');
         setModalVisible(true);
         setActivationSent(true);
 
         await deleteDoc(pinDocRef);
+        console.log('Deleted PIN document after successful verification');
       } else if (timeDiff > oneMinute) {
+        console.log('PIN expired. Prompting user to request a new one.');
         Alert.alert(
           'PIN Expired',
           'Your PIN has expired. Would you like to request a new one?',
@@ -222,9 +248,10 @@ export default function PinVerificationScreen({
           { cancelable: false }
         );
         await deleteDoc(pinDocRef);
-        console.log('PIN expired and deleted for user:', user.uid);
+        console.log('Deleted expired PIN document');
       } else {
         Alert.alert('Error', 'Invalid PIN. Please try again.');
+        console.log('Entered PIN is incorrect');
       }
     } catch (error) {
       console.error('Error verifying PIN:', error);
@@ -236,7 +263,6 @@ export default function PinVerificationScreen({
     <Layout style={styles.container}>
       <Text style={styles.title}>PIN VERIFICATION</Text>
 
-      {/* Always show the original email in the instructions */}
       <Text style={styles.instructions}>Check {originalEmail} for the PIN code.</Text>
 
       <View style={styles.pinContainer}>
@@ -250,11 +276,19 @@ export default function PinVerificationScreen({
         ))}
       </View>
 
-      {/* Show Paste hint if a valid PIN is detected in clipboard */}
       {showPasteHint && (
-        <TouchableOpacity onPress={handleInsertFromClipboard}>
-          <Text style={styles.pasteHintText}>Paste</Text>
-        </TouchableOpacity>
+        <Tooltip
+          anchor={() => (
+            <TouchableOpacity onPress={handleInsertFromClipboard} style={styles.pasteHintBox}>
+              <Text style={styles.pasteHintText}>Paste</Text>
+            </TouchableOpacity>
+          )}
+          visible={showPasteHint}
+          onBackdropPress={() => setShowPasteHint(false)}
+          style={styles.tooltipStyle}
+        >
+          <View />
+        </Tooltip>
       )}
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
@@ -271,7 +305,6 @@ export default function PinVerificationScreen({
           </TouchableOpacity>
         ))}
 
-        {/* Insert Clipboard Button with Icon */}
         <TouchableOpacity
           style={[styles.keypadButton, styles.insertButton]}
           onPress={handleInsertFromClipboard}
@@ -305,7 +338,6 @@ export default function PinVerificationScreen({
         <Text style={styles.submitButtonText}>Submit PIN</Text>
       </TouchableOpacity>
 
-      {/* Modal for showing the checkbox and Log me out */}
       <Modal
         visible={isModalVisible}
         transparent={true}
@@ -322,7 +354,6 @@ export default function PinVerificationScreen({
               <Text style={styles.modalText}>Please verify the email change on the new email.</Text>
             )}
 
-            {/* Checkbox for Agreement */}
             <CheckBox checked={hasAgreed} onChange={setHasAgreed} style={styles.checkbox}>
               I understand that I need to click the verification link sent to my new email for the
               changes to take effect.
@@ -405,11 +436,28 @@ const styles = StyleSheet.create({
   insertButton: {
     backgroundColor: '#444',
   },
+  pasteHintBox: {
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#444',
+    borderRadius: 8,
+    marginTop: 10,
+  },
   pasteHintText: {
     color: '#ffffff',
     fontSize: 16,
-    marginVertical: 10,
     textAlign: 'center',
+  },
+  tooltipStyle: {
+    backgroundColor: '#444',
+    padding: 0,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+    elevation: 5,
   },
   keypadText: {
     fontSize: width * 0.06,
