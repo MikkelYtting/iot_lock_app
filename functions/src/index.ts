@@ -10,8 +10,20 @@ admin.initializeApp();
 // Use the SendGrid key from the Firebase config
 const SENDGRID_API_KEY = functions.config().sendgrid.key;
 
-// Properly configure SendGrid
-sendGridMail.setApiKey(SENDGRID_API_KEY);
+// Ensure the API key exists and is non-empty
+if (!SENDGRID_API_KEY) {
+  logger.error("SendGrid API key is missing in Firebase config.");
+} else {
+  sendGridMail.setApiKey(SENDGRID_API_KEY);
+}
+
+// Define a custom error type for SendGrid errors
+interface SendGridError extends Error {
+  code?: string;
+  response?: {
+    body: any;
+  };
+}
 
 // --------------------- v1 function (email sending with PIN generation) -------------------------
 export const sendEmail = functions
@@ -48,22 +60,33 @@ export const sendEmail = functions
       return;
     }
 
-    // Send the email with the PIN
+    // Prepare the message to send using the SendGrid template
     const msg = {
       to: recipientEmail,
-      from: "Arguslocks@gmail.com",
-      subject: "Your Verification PIN",
-      text: `Your verification PIN is: ${pin}. Please use this code to complete your verification.`,
-      html: `<p>Your verification PIN is: <strong>${pin}</strong>. Please use this code to complete your verification.</p>`,
+      from: "Arguslocks@gmail.com", // Ensure this sender email is verified in SendGrid
+      templateId: "d-437f3323fad340c192304929c261fc83", // Replace with your actual Template ID
+      dynamicTemplateData: {
+        pin, // This matches the placeholder name {{pin}} in your template
+      },
     };
 
+    // Log the message object to inspect its content
+    logger.info('Prepared message object for SendGrid:', { msg });
+
     try {
-      logger.info('Sending email', { msg });
-      await sendGridMail.send(msg);
-      logger.info('Email sent successfully', { recipientEmail });
+      // Send the email using SendGrid and log the response
+      const response = await sendGridMail.send(msg);
+      logger.info('SendGrid response:', { response });
+      logger.info('Email sent successfully using template', { recipientEmail });
       res.status(200).send("Email sent successfully.");
     } catch (error) {
-      logger.error("Error sending email:", error);
-      res.status(500).send("Failed to send email.");
+      // Cast the error as SendGridError to access its properties
+      const err = error as SendGridError;
+      logger.error("Error sending email with template:", {
+        message: err.message,
+        code: err.code,
+        response: err.response ? err.response.body : 'No response body',
+      });
+      res.status(500).send("Failed to send email with template.");
     }
   });
