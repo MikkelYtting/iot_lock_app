@@ -34,7 +34,7 @@
 //     console.log(`PIN (${generatedPin}) stored in Firestore for user: ${user.uid}`);
 
 //     const emailResponse = await fetch(
-//       `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${email}&pin=${generatedPin}`
+//       
 //     );
 
 //     if (!emailResponse.ok) {

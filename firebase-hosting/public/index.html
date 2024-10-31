@@ -1,0 +1,102 @@
+import * as functions from "firebase-functions/v1";
+import * as admin from "firebase-admin";
+import sendGridMail from "@sendgrid/mail";
+import * as logger from "firebase-functions/logger";
+import { Request, Response } from "express";
+
+// Initialize Firebase Admin
+admin.initializeApp();
+
+// Attempt to load SendGrid API Key from Firebase functions config
+let SENDGRID_API_KEY: string | undefined;
+
+try {
+  const config = functions.config();
+  logger.info("functions.config() loaded successfully.", { config });
+
+  if (config.sendgrid) {
+    SENDGRID_API_KEY = config.sendgrid.key;
+    logger.info("SendGrid API Key retrieved from config:", { key: SENDGRID_API_KEY });
+  } else {
+    logger.error("Config does not contain sendgrid settings. Please ensure sendgrid is properly configured.");
+  }
+} catch (error) {
+  logger.error("Error accessing functions.config() or sendgrid config.", error);
+}
+
+// Check if the key is valid before trying to set it
+if (SENDGRID_API_KEY) {
+  try {
+    sendGridMail.setApiKey(SENDGRID_API_KEY);
+    logger.info("SendGrid API key successfully set.");
+  } catch (error) {
+    logger.error("Failed to set SendGrid API key:", error);
+  }
+} else {
+  logger.error("SENDGRID_API_KEY is undefined. Cannot initialize SendGrid.");
+}
+
+// --------------------- Function for Sending PIN Code Email using SendGrid -------------------------
+export const sendPinCodeEmail = functions
+  .region("europe-west1")
+  .runWith({ timeoutSeconds: 300, memory: "512MB" })
+  .https.onRequest(async (req: Request, res: Response) => {
+    logger.info("Received request to send PIN email", { query: req.query });
+
+    // Validate query parameters
+    const recipientEmail = req.query.to as string;
+    if (!recipientEmail) {
+      logger.error("Missing recipient email");
+      res.status(400).send("Missing recipient email.");
+      return;
+    }
+
+    // Generate a 5-digit PIN
+    const pin = Math.floor(10000 + Math.random() * 90000).toString();
+    logger.info("Generated PIN for email", { recipientEmail, pin });
+
+    // Store the PIN in Firestore with a timestamp
+    const userDocRef = admin.firestore().collection("pins").doc(recipientEmail);
+    const createdAt = admin.firestore.FieldValue.serverTimestamp();
+    try {
+      await userDocRef.set({
+        pin,
+        createdAt,
+        requestCount: admin.firestore.FieldValue.increment(1),
+      });
+      logger.info("Stored PIN in Firestore", { recipientEmail, pin });
+    } catch (firestoreError) {
+      logger.error("Error storing PIN in Firestore:", { firestoreError });
+      res.status(500).send("Failed to store PIN in Firestore.");
+      return;
+    }
+
+    // Prepare the message to send using the SendGrid template
+    const msg = {
+      to: recipientEmail,
+      from: "Arguslocks@gmail.com",
+      templateId: "d-437f3323fad340c192304929c261fc83",
+      dynamicTemplateData: {
+        pin, // This matches the placeholder name {{pin}} in your template
+      },
+    };
+
+    // Log the message object to inspect its content
+    logger.info("Prepared message object for SendGrid", { msg });
+
+    try {
+      // Send the email using SendGrid and log the response
+      const response = await sendGridMail.send(msg);
+      logger.info("SendGrid email response", { response: response[0] });
+      logger.info("Email sent successfully using template", { recipientEmail });
+      res.status(200).send("Email sent successfully.");
+    } catch (error) {
+      const err = error as SendGridError;
+      logger.error("Error sending email with template", {
+        message: err.message,
+        code: err.code,
+        response: err.response ? err.response.body : "No response body",
+      });
+      res.status(500).send("Failed to send email with template.");
+    }
+  });

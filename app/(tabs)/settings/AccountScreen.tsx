@@ -262,22 +262,16 @@ export default function AccountScreen() {
       console.error('User is not authenticated');
       return;
     }
-
+  
     try {
       const activePin = await checkActivePin();
       if (activePin) {
-        Alert.alert('Verification PIN Sent', `Please check your email for the active PIN: ${email}`, [
-          {
-            text: 'Go to Keypad',
-            onPress: () => {
-              router.push({
-                pathname: '/(tabs)/settings/PinVerificationScreen',
-                params: { userEmail: email, isOriginalEmail: 'true', isNavigatedFromVerification: 'true' },
-              });
-            },
-          },
-        ]);
-        return;
+        // Only send Firebase email verification after the user successfully enters the PIN
+        await sendEmailVerification(user); // <-- This line requires a valid User object
+        Alert.alert(
+          'Verification Email Sent',
+          'Please check your new email inbox to complete the verification.'
+        );
       } else {
         await sendVerificationPin();
       }
@@ -290,42 +284,45 @@ export default function AccountScreen() {
       }
     }
   };
+  
+  
 
   const handleEmailChange = async () => {
     if (!validateInputs()) return;
-
+  
     if (!password) {
       Alert.alert('Error', 'Password is required to change your email.');
       return;
     }
-
+  
     if (!newEmail) {
       Alert.alert('Error', 'New email is required.');
       return;
     }
-
+  
     try {
       const user = auth.currentUser;
       if (user && newEmail && isPinVerified && isEmailValid) {
         const credential = EmailAuthProvider.credential(user.email!, password);
         await reauthenticateWithCredential(user, credential);
-
+  
         await updateEmail(user, newEmail);
+        // Only call Firebase email verification here, post email change
         await sendEmailVerification(user);
-
+  
         setEmailVerified(false);
-
+  
         Alert.alert(
           'Success',
           `Email updated! Please check your new email address (${newEmail}) to complete verification.`
         );
-
+  
         await updateDoc(doc(firestore, 'users', user.uid), {
           email: newEmail,
           emailVerified: false,
           emailHistory: arrayUnion(email),
         });
-
+  
         setEmail(newEmail);
         setNewEmail('');
         setPassword('');
@@ -343,6 +340,8 @@ export default function AccountScreen() {
       }
     }
   };
+  
+  
 
   return (
     <Layout style={styles.container}>
