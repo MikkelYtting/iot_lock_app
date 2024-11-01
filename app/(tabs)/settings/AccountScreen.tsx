@@ -10,15 +10,15 @@ import {
   sendEmailVerification,
 } from 'firebase/auth';
 import { auth, firestore } from '../../../firebase';
-import { doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { validateEmail } from '../../../components/LoginScreenComponents/FormValidation';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const { width } = Dimensions.get('window');
 
 const isDeveloperMode = __DEV__;
-const PIN_EXPIRATION_TIME = 60 * 1000; // 1 minute in milliseconds
-const MIN_PIN_AGE = 4000; // 4 seconds in milliseconds
+const PIN_EXPIRATION_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
+const MIN_PIN_AGE = 4 * 60 * 1000; // 4 minutes in milliseconds
 
 const devLog = (...args: any[]): void => {
   if (__DEV__) {
@@ -26,11 +26,16 @@ const devLog = (...args: any[]): void => {
   }
 };
 
+interface SendPinCodeResponse {
+  message: string;
+  status: string;
+}
+
 export default function AccountScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [password, setPassword] = useState(''); // Required for reauthentication
+  const [password, setPassword] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [errors, setErrors] = useState<{ name: string; newEmail: string; password: string }>({
     name: '',
@@ -41,11 +46,12 @@ export default function AccountScreen() {
   const [isPinSent, setIsPinSent] = useState(false);
   const [isEmailValid, setIsEmailValid] = useState(false);
   const router = useRouter();
-  const [initialKeypadEntry, setInitialKeypadEntry] = useState(true); // Flag for showing the message only once
+  const [pinGeneratedTime, setPinGeneratedTime] = useState<number | null>(null);
 
   useEffect(() => {
     const user = auth.currentUser;
     if (user) {
+      devLog('Authenticated User ID:', user.uid);
       devLog('User fetched in useEffect:', user);
       setName(user.displayName || '');
       setEmail(user.email || '');
@@ -55,8 +61,6 @@ export default function AccountScreen() {
         setNewEmail('Mytting1994@gmail.com');
         setPassword('123456HH');
       }
-    } else {
-      devLog('No authenticated user found during initial fetch');
     }
 
     const fetchProfile = async () => {
@@ -72,10 +76,7 @@ export default function AccountScreen() {
           setName(profileData?.name || '');
           setEmail(profileData?.email || '');
           setEmailVerified(profileData?.emailVerified || false);
-
           devLog('Email fetched from Firestore profile:', profileData?.email);
-        } else {
-          devLog('User profile document does not exist');
         }
       } catch (error) {
         devLog('Error fetching user profile:', error instanceof Error ? error.message : error);
@@ -91,6 +92,7 @@ export default function AccountScreen() {
   const refreshEmailVerificationStatus = async (): Promise<void> => {
     const user = auth.currentUser;
     if (user) {
+      devLog('Refreshing email verification status for User ID:', user.uid);
       try {
         await user.reload();
         const isEmailVerified = user.emailVerified;
@@ -127,6 +129,7 @@ export default function AccountScreen() {
     try {
       const user = auth.currentUser;
       if (user && name !== user.displayName) {
+        devLog('Updating name for User ID:', user.uid);
         await updateProfile(user, { displayName: name });
         await setDoc(doc(firestore, 'users', user.uid), { name }, { merge: true });
         Alert.alert('Success', 'Name updated successfully.');
@@ -145,6 +148,7 @@ export default function AccountScreen() {
     if (!user || !password) return false;
 
     try {
+      devLog('Reauthenticating user with email:', user.email);
       const credential = EmailAuthProvider.credential(user.email!, password);
       await reauthenticateWithCredential(user, credential);
       devLog('User reauthenticated successfully');
@@ -156,40 +160,80 @@ export default function AccountScreen() {
     }
   };
 
+  const checkActivePin = async (): Promise<boolean> => {
+    const user = auth.currentUser;
+    if (!user) return false;
+
+    devLog('Checking active PIN for User ID:', user.uid);
+    const pinDocRef = doc(firestore, 'pins', user.uid);
+    const pinDoc = await getDoc(pinDocRef);
+
+    if (pinDoc.exists()) {
+      const { expiresAt } = pinDoc.data();
+      const now = Date.now();
+      devLog('PIN expiresAt:', expiresAt?.toMillis(), 'Current time:', now);
+
+      if (expiresAt && now < expiresAt.toMillis()) {
+        devLog('Active PIN found for User ID:', user.uid);
+        return true;
+      } else {
+        devLog('PIN expired or invalid for User ID:', user.uid);
+      }
+    } else {
+      devLog('No PIN document found for User ID:', user.uid);
+    }
+    return false;
+  };
+
   const sendVerificationPin = async (): Promise<void> => {
     const user = auth.currentUser;
     if (!user) {
       Alert.alert('Error', 'User is not authenticated.');
+      devLog('Error: No authenticated user');
       return;
     }
 
+    devLog('Attempting to send verification PIN for User ID:', user.uid);
+
     const isReauthenticated = await reauthenticateUser();
-    if (!isReauthenticated) return;
+    if (!isReauthenticated) {
+      devLog('Error: Reauthentication failed');
+      return;
+    }
 
     const userEmail = user.email;
     if (!userEmail) {
       Alert.alert('Error', 'Email is not available.');
-      devLog('Email is undefined or empty.');
+      devLog('Error: Email is undefined or empty.');
       return;
     }
 
     if (!isEmailValid || !newEmail) {
       Alert.alert('Error', 'Please enter a valid new email before requesting a PIN.');
+      devLog('Error: Email is invalid or new email is missing.');
+      return;
+    }
+
+    const hasActivePin = await checkActivePin();
+    if (hasActivePin) {
+      Alert.alert('Active PIN', 'You already have a valid PIN. Please use the existing PIN instead of requesting a new one.');
       return;
     }
 
     try {
-      const functions = getFunctions();
+      devLog('Attempting to call sendPinCodeEmail function');
+      const functions = getFunctions(undefined, 'europe-west1');
       const sendPinCodeEmail = httpsCallable(functions, 'sendPinCodeEmail');
-      await sendPinCodeEmail({ email: userEmail });
-      devLog('PIN sent via SendGrid');
+
+      const response = (await sendPinCodeEmail({ email: userEmail })) as { data: SendPinCodeResponse };
+      devLog('sendPinCodeEmail function response:', response);
+
+      setIsPinSent(true);
 
       router.push({
         pathname: '/(tabs)/settings/PinVerificationScreen',
         params: { userEmail, isOriginalEmail: 'true', initialEntry: 'true' },
       });
-
-      setIsPinSent(true);
     } catch (error) {
       devLog('Error sending PIN:', error instanceof Error ? error.message : error);
       Alert.alert('Error', 'Failed to send PIN. Please try again.');
@@ -212,6 +256,7 @@ export default function AccountScreen() {
     try {
       const user = auth.currentUser;
       if (user && newEmail && isPinSent && isEmailValid) {
+        devLog('Changing email for User ID:', user.uid);
         const credential = EmailAuthProvider.credential(user.email!, password);
         await reauthenticateWithCredential(user, credential);
 
@@ -243,6 +288,15 @@ export default function AccountScreen() {
     } catch (error) {
       devLog('Error updating email:', error instanceof Error ? error.message : error);
       Alert.alert('Error', `Failed to update email: ${error instanceof Error ? error.message : error}`);
+    }
+  };
+
+  const handleGoBackToKeypad = async (): Promise<void> => {
+    const hasActivePin = await checkActivePin();
+    if (hasActivePin) {
+      router.push('/(tabs)/settings/PinVerificationScreen');
+    } else {
+      Alert.alert('No Active PIN', 'Please try again.');
     }
   };
 
@@ -322,11 +376,11 @@ export default function AccountScreen() {
           ) : (
             <Button
               status="info"
-              onPress={handleEmailChange}
+              onPress={handleGoBackToKeypad}
               style={styles.button}
               disabled={!newEmail || !password || !isEmailValid}
             >
-              Confirm Email Change
+              Go back to keypad
             </Button>
           )}
         </>

@@ -7,6 +7,7 @@ import { auth, firestore } from '../../../firebase';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import * as CryptoJS from 'crypto-js';
+import { updateEmail, sendEmailVerification } from 'firebase/auth';
 
 const { width } = Dimensions.get('window');
 
@@ -20,7 +21,7 @@ interface SendPinCodeRequest {
 }
 
 interface SendPinCodeResponse {
-  ttl: number; // `ttl` is expected to be a number representing time in milliseconds
+  ttl: number;
 }
 
 export default function PinVerificationScreen({
@@ -29,7 +30,7 @@ export default function PinVerificationScreen({
 }: PinVerificationScreenProps) {
   const [pin, setPin] = useState('');
   const [pinGeneratedTime, setPinGeneratedTime] = useState<number | null>(null);
-  const [pinTTL, setPinTTL] = useState<number>(60 * 1000); // Default TTL of 1 minute in milliseconds
+  const [pinTTL, setPinTTL] = useState<number>(5 * 60 * 1000); // 5 minutes
   const pinLength = 5;
   const [attempts, setAttempts] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
@@ -48,11 +49,7 @@ export default function PinVerificationScreen({
   const hasSubmittedRef = useRef(false);
 
   useEffect(() => {
-    if (
-      initialKeypadEntry &&
-      !isNavigatedFromVerification &&
-      initialEntry === 'true'
-    ) {
+    if (initialKeypadEntry && !isNavigatedFromVerification && initialEntry === 'true') {
       if (originalEmail) {
         Alert.alert(
           'Verification PIN Sent',
@@ -87,7 +84,7 @@ export default function PinVerificationScreen({
     if (pin.length === pinLength && attempts < maxAttempts) {
       if (!hasSubmittedRef.current) {
         hasSubmittedRef.current = true;
-        submitPin();
+        handlePinValidationAndEmailChange();
       }
     } else {
       hasSubmittedRef.current = false;
@@ -157,9 +154,9 @@ export default function PinVerificationScreen({
     }
   };
 
-  const submitPin = async () => {
+  const handlePinValidationAndEmailChange = async () => {
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user || !newEmail) return;
 
     const now = Date.now();
     if (pinGeneratedTime && pinTTL && now - pinGeneratedTime > pinTTL) {
@@ -180,16 +177,22 @@ export default function PinVerificationScreen({
       const hashedEnteredPin = CryptoJS.SHA256(pin).toString();
 
       if (hashedEnteredPin === hashedPin) {
-        setModalVisible(true);
-        setActivationSent(true);
         await deleteDoc(pinDocRef);
+
+        const emailToUpdate = Array.isArray(newEmail) ? newEmail[0] : newEmail;
+        await updateEmail(user, emailToUpdate);
+        await sendEmailVerification(user);
+
+        Alert.alert('Success', `Email updated! Please check ${emailToUpdate} to verify.`);
+        setModalVisible(false);
+        setActivationSent(true);
       } else {
         setAttempts((prevAttempts) => prevAttempts + 1);
         Alert.alert('Error', 'Invalid PIN. Please try again.');
       }
     } catch (error) {
-      console.error('Error verifying PIN:', error);
-      Alert.alert('Error', 'Failed to verify PIN. Please try again.');
+      console.error('Error updating email:', error);
+      Alert.alert('Error', `Failed to update email: ${error instanceof Error ? error.message : error}`);
     }
   };
 
@@ -267,7 +270,7 @@ export default function PinVerificationScreen({
 
       <TouchableOpacity
         style={styles.submitButton}
-        onPress={submitPin}
+        onPress={handlePinValidationAndEmailChange}
         disabled={attempts >= maxAttempts || pin.length !== pinLength}
       >
         <Text style={styles.submitButtonText}>Submit PIN</Text>
