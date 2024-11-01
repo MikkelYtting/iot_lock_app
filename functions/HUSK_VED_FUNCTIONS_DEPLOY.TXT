@@ -1,0 +1,23 @@
+1. Slet lib manuelt (da det bugger)
+2. Derefter "tsc --project tsconfig.build.json" i functions folder.
+
+hvis det bugger prøv: "npm install typescript --save-dev"
+
+
+
+
+
+
+ELLER
+
+
+
+
+
+firebase deploy --only functions         
+   
+Hvis lib ikke bliver updatet selv (som er problemet I arguslocks)
+For at fjene lib: 
+Remove-Item -Recurse -Force lib      
+For at tilføje det igen:
+npx tsc -p tsconfig.build.json

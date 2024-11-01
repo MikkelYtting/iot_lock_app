@@ -12,13 +12,19 @@ import {
 import { auth, firestore } from '../../../firebase';
 import { doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { validateEmail } from '../../../components/LoginScreenComponents/FormValidation';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const { width } = Dimensions.get('window');
 
 const isDeveloperMode = __DEV__;
-
 const PIN_EXPIRATION_TIME = 60 * 1000; // 1 minute in milliseconds
 const MIN_PIN_AGE = 4000; // 4 seconds in milliseconds
+
+const devLog = (...args: any[]): void => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
 
 export default function AccountScreen() {
   const [name, setName] = useState('');
@@ -26,11 +32,12 @@ export default function AccountScreen() {
   const [newEmail, setNewEmail] = useState('');
   const [password, setPassword] = useState(''); // Required for reauthentication
   const [isEditing, setIsEditing] = useState(false);
-  const [errors, setErrors] = useState({ name: '', newEmail: '', password: '' });
+  const [errors, setErrors] = useState<{ name: string; newEmail: string; password: string }>({
+    name: '',
+    newEmail: '',
+    password: '',
+  });
   const [emailVerified, setEmailVerified] = useState(true);
-  const [pin, setPin] = useState('');
-  const [enteredPin, setEnteredPin] = useState('');
-  const [isPinVerified, setIsPinVerified] = useState(false);
   const [isPinSent, setIsPinSent] = useState(false);
   const [isEmailValid, setIsEmailValid] = useState(false);
   const router = useRouter();
@@ -39,7 +46,7 @@ export default function AccountScreen() {
   useEffect(() => {
     const user = auth.currentUser;
     if (user) {
-      console.log('User fetched in useEffect:', user);
+      devLog('User fetched in useEffect:', user);
       setName(user.displayName || '');
       setEmail(user.email || '');
       setIsEmailValid(true);
@@ -49,13 +56,13 @@ export default function AccountScreen() {
         setPassword('123456HH');
       }
     } else {
-      console.error('No authenticated user found during initial fetch');
+      devLog('No authenticated user found during initial fetch');
     }
 
     const fetchProfile = async () => {
       try {
         if (!user) {
-          console.error('No authenticated user found during fetchProfile');
+          devLog('No authenticated user found during fetchProfile');
           return;
         }
 
@@ -66,16 +73,12 @@ export default function AccountScreen() {
           setEmail(profileData?.email || '');
           setEmailVerified(profileData?.emailVerified || false);
 
-          console.log('Email fetched from Firestore profile:', profileData?.email);
+          devLog('Email fetched from Firestore profile:', profileData?.email);
         } else {
-          console.error('User profile document does not exist');
+          devLog('User profile document does not exist');
         }
       } catch (error) {
-        if (error instanceof Error) {
-          console.error('Error fetching user profile:', error.message);
-        } else {
-          console.error('Unexpected error during fetchProfile', error);
-        }
+        devLog('Error fetching user profile:', error instanceof Error ? error.message : error);
       }
     };
 
@@ -85,35 +88,7 @@ export default function AccountScreen() {
     }
   }, []);
 
-  const checkActivePin = async () => {
-    const user = auth.currentUser;
-    if (!user) return null;
-
-    const pinDocRef = doc(firestore, 'pins', user.uid);
-    const pinDoc = await getDoc(pinDocRef);
-
-    if (!pinDoc.exists()) {
-      return null;
-    }
-
-    const { pin: storedPin, createdAt } = pinDoc.data();
-    const now = new Date();
-
-    if (!createdAt) return null;
-
-    const createdAtDate = createdAt.toDate();
-    const timeDiff = now.getTime() - createdAtDate.getTime();
-
-    // If PIN is too new (less than 4 seconds), discard and send a new one
-    if (timeDiff < MIN_PIN_AGE || timeDiff > PIN_EXPIRATION_TIME) {
-      await deleteDoc(pinDocRef);
-      return null;
-    } else if (timeDiff >= MIN_PIN_AGE && timeDiff <= PIN_EXPIRATION_TIME) {
-      return storedPin; // PIN is still valid
-    }
-  };
-
-  const refreshEmailVerificationStatus = async () => {
+  const refreshEmailVerificationStatus = async (): Promise<void> => {
     const user = auth.currentUser;
     if (user) {
       try {
@@ -121,17 +96,14 @@ export default function AccountScreen() {
         const isEmailVerified = user.emailVerified;
         setEmailVerified(isEmailVerified);
         await updateDoc(doc(firestore, 'users', user.uid), { emailVerified: isEmailVerified });
+        devLog('Email verification status refreshed:', isEmailVerified);
       } catch (error) {
-        if (error instanceof Error) {
-          console.error('Error refreshing email verification status:', error.message);
-        } else {
-          console.error('Unexpected error during refreshEmailVerificationStatus', error);
-        }
+        devLog('Error refreshing email verification status:', error instanceof Error ? error.message : error);
       }
     }
   };
 
-  const validateInputs = () => {
+  const validateInputs = (): boolean => {
     let isValid = true;
     const newErrors = { name: '', newEmail: '', password: '' };
 
@@ -145,10 +117,11 @@ export default function AccountScreen() {
     }
 
     setErrors(newErrors);
+    devLog('Input validation result:', isValid, 'Errors:', newErrors);
     return isValid;
   };
 
-  const handleNameChange = async () => {
+  const handleNameChange = async (): Promise<void> => {
     if (!validateInputs()) return;
 
     try {
@@ -157,37 +130,33 @@ export default function AccountScreen() {
         await updateProfile(user, { displayName: name });
         await setDoc(doc(firestore, 'users', user.uid), { name }, { merge: true });
         Alert.alert('Success', 'Name updated successfully.');
+        devLog('Name updated successfully');
       } else {
         Alert.alert('Error', 'Name has not been changed.');
       }
     } catch (error) {
-      if (error instanceof Error) {
-        console.error('Error updating name:', error.message);
-        Alert.alert('Error', 'Failed to update name. Please try again.');
-      } else {
-        console.error('Unexpected error during handleNameChange', error);
-      }
+      devLog('Error updating name:', error instanceof Error ? error.message : error);
+      Alert.alert('Error', 'Failed to update name. Please try again.');
     }
   };
 
-  const reauthenticateUser = async () => {
+  const reauthenticateUser = async (): Promise<boolean> => {
     const user = auth.currentUser;
     if (!user || !password) return false;
 
     try {
       const credential = EmailAuthProvider.credential(user.email!, password);
       await reauthenticateWithCredential(user, credential);
+      devLog('User reauthenticated successfully');
       return true;
     } catch (error) {
-      if (error instanceof Error) {
-        console.error('Error reauthenticating user:', error.message);
-        Alert.alert('Authentication Failed', 'The provided password is incorrect. Please try again.');
-      }
+      devLog('Error reauthenticating user:', error instanceof Error ? error.message : error);
+      Alert.alert('Authentication Failed', 'The provided password is incorrect. Please try again.');
       return false;
     }
   };
 
-  const sendVerificationPin = async () => {
+  const sendVerificationPin = async (): Promise<void> => {
     const user = auth.currentUser;
     if (!user) {
       Alert.alert('Error', 'User is not authenticated.');
@@ -197,11 +166,10 @@ export default function AccountScreen() {
     const isReauthenticated = await reauthenticateUser();
     if (!isReauthenticated) return;
 
-    const userEmail = user.email; // Always use the original authenticated user's email
-
+    const userEmail = user.email;
     if (!userEmail) {
       Alert.alert('Error', 'Email is not available.');
-      console.error('Email is undefined or empty.');
+      devLog('Email is undefined or empty.');
       return;
     }
 
@@ -211,137 +179,72 @@ export default function AccountScreen() {
     }
 
     try {
-      const generatedPin = Math.floor(10000 + Math.random() * 90000).toString();
-      setPin(generatedPin);
+      const functions = getFunctions();
+      const sendPinCodeEmail = httpsCallable(functions, 'sendPinCodeEmail');
+      await sendPinCodeEmail({ email: userEmail });
+      devLog('PIN sent via SendGrid');
 
-      const expirationTime = new Date();
-      expirationTime.setMinutes(expirationTime.getMinutes() + 1);
-
-      const pinDocRef = doc(firestore, 'pins', user.uid);
-      await setDoc(pinDocRef, {
-        pin: generatedPin,
-        createdAt: new Date(),
-        ttl: expirationTime,
-        userId: user.uid,
-      });
-
-      console.log(`PIN (${generatedPin}) stored in Firestore for user: ${user.uid}`);
-
-      const emailResponse = await fetch(
-        `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${userEmail}&pin=${generatedPin}`
-      );
-
-      if (!emailResponse.ok) {
-        const errorText = await emailResponse.text();
-        throw new Error(`Failed to send email: ${errorText}`);
-      }
-
-      // Pass the original email as userEmail to the verification screen with the flag for original email
       router.push({
         pathname: '/(tabs)/settings/PinVerificationScreen',
         params: { userEmail, isOriginalEmail: 'true', initialEntry: 'true' },
       });
 
       setIsPinSent(true);
-      setEnteredPin('');
-      setIsPinVerified(false);
-      setInitialKeypadEntry(false); // Ensure first entry alert doesn't trigger again
     } catch (error) {
-      if (error instanceof Error) {
-        console.error('Error sending PIN:', error.message);
-        Alert.alert('Error', 'Failed to send PIN. Please try again.');
-      } else {
-        console.error('Unexpected error during sendVerificationPin', error);
-      }
+      devLog('Error sending PIN:', error instanceof Error ? error.message : error);
+      Alert.alert('Error', 'Failed to send PIN. Please try again.');
     }
   };
 
-  const verifyPin = async () => {
-    const user = auth.currentUser;
-    if (!user) {
-      console.error('User is not authenticated');
-      return;
-    }
-  
-    try {
-      const activePin = await checkActivePin();
-      if (activePin) {
-        // Only send Firebase email verification after the user successfully enters the PIN
-        await sendEmailVerification(user); // <-- This line requires a valid User object
-        Alert.alert(
-          'Verification Email Sent',
-          'Please check your new email inbox to complete the verification.'
-        );
-      } else {
-        await sendVerificationPin();
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error('Error verifying PIN:', error.message);
-        Alert.alert('Error', 'Failed to verify PIN. Please try again.');
-      } else {
-        console.error('Unexpected error during verifyPin', error);
-      }
-    }
-  };
-  
-  
-
-  const handleEmailChange = async () => {
+  const handleEmailChange = async (): Promise<void> => {
     if (!validateInputs()) return;
-  
+
     if (!password) {
       Alert.alert('Error', 'Password is required to change your email.');
       return;
     }
-  
+
     if (!newEmail) {
       Alert.alert('Error', 'New email is required.');
       return;
     }
-  
+
     try {
       const user = auth.currentUser;
-      if (user && newEmail && isPinVerified && isEmailValid) {
+      if (user && newEmail && isPinSent && isEmailValid) {
         const credential = EmailAuthProvider.credential(user.email!, password);
         await reauthenticateWithCredential(user, credential);
-  
+
         await updateEmail(user, newEmail);
-        // Only call Firebase email verification here, post email change
         await sendEmailVerification(user);
-  
+
         setEmailVerified(false);
-  
+
         Alert.alert(
           'Success',
           `Email updated! Please check your new email address (${newEmail}) to complete verification.`
         );
-  
+
         await updateDoc(doc(firestore, 'users', user.uid), {
           email: newEmail,
           emailVerified: false,
           emailHistory: arrayUnion(email),
         });
-  
+
         setEmail(newEmail);
         setNewEmail('');
         setPassword('');
         setIsEditing(false);
-        setIsPinVerified(false);
+        setIsPinSent(false);
+        devLog('Email change successful');
       } else {
         Alert.alert('Error', 'PIN verification and valid email are required before changing your email.');
       }
     } catch (error) {
-      if (error instanceof Error) {
-        console.error('Error updating email:', error.message);
-        Alert.alert('Error', `Failed to update email: ${error.message}`);
-      } else {
-        console.error('Unexpected error during handleEmailChange', error);
-      }
+      devLog('Error updating email:', error instanceof Error ? error.message : error);
+      Alert.alert('Error', `Failed to update email: ${error instanceof Error ? error.message : error}`);
     }
   };
-  
-  
 
   return (
     <Layout style={styles.container}>
@@ -417,16 +320,14 @@ export default function AccountScreen() {
               Verify Email Change
             </Button>
           ) : (
-            <>
-              <Button
-                status="info"
-                onPress={verifyPin}
-                style={styles.button}
-                disabled={!newEmail || !password || !isEmailValid}
-              >
-                Verify PIN
-              </Button>
-            </>
+            <Button
+              status="info"
+              onPress={handleEmailChange}
+              style={styles.button}
+              disabled={!newEmail || !password || !isEmailValid}
+            >
+              Confirm Email Change
+            </Button>
           )}
         </>
       ) : (

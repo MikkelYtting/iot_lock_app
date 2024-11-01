@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Modal, Alert } from 'react-native';
 import { Layout, Icon, CheckBox, Button } from '@ui-kitten/components';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { auth, firestore } from '../../../firebase';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import * as CryptoJS from 'crypto-js';
 
 const { width } = Dimensions.get('window');
 
@@ -13,11 +15,21 @@ interface PinVerificationScreenProps {
   isNavigatedFromVerification: boolean;
 }
 
+interface SendPinCodeRequest {
+  email: string;
+}
+
+interface SendPinCodeResponse {
+  ttl: number; // `ttl` is expected to be a number representing time in milliseconds
+}
+
 export default function PinVerificationScreen({
   onVerify,
   isNavigatedFromVerification,
 }: PinVerificationScreenProps) {
   const [pin, setPin] = useState('');
+  const [pinGeneratedTime, setPinGeneratedTime] = useState<number | null>(null);
+  const [pinTTL, setPinTTL] = useState<number>(60 * 1000); // Default TTL of 1 minute in milliseconds
   const pinLength = 5;
   const [attempts, setAttempts] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
@@ -33,7 +45,7 @@ export default function PinVerificationScreen({
 
   const router = useRouter();
 
-  const hasSubmittedRef = useRef(false); // Ref to prevent multiple submissions
+  const hasSubmittedRef = useRef(false);
 
   useEffect(() => {
     if (
@@ -51,14 +63,8 @@ export default function PinVerificationScreen({
       }
       setInitialKeypadEntry(false);
     }
-  }, [
-    initialKeypadEntry,
-    originalEmail,
-    isNavigatedFromVerification,
-    initialEntry,
-  ]);
+  }, [initialKeypadEntry, originalEmail, isNavigatedFromVerification, initialEntry]);
 
-  // Effect to monitor clipboard for a 5-digit number
   useEffect(() => {
     const checkClipboard = async () => {
       try {
@@ -73,11 +79,10 @@ export default function PinVerificationScreen({
       }
     };
 
-    const intervalId = setInterval(checkClipboard, 1000); // Check clipboard every second
-    return () => clearInterval(intervalId); // Cleanup on unmount
+    const intervalId = setInterval(checkClipboard, 1000);
+    return () => clearInterval(intervalId);
   }, []);
 
-  // Effect to automatically submit PIN when it reaches the required length
   useEffect(() => {
     if (pin.length === pinLength && attempts < maxAttempts) {
       if (!hasSubmittedRef.current) {
@@ -85,7 +90,7 @@ export default function PinVerificationScreen({
         submitPin();
       }
     } else {
-      hasSubmittedRef.current = false; // Reset when PIN length changes
+      hasSubmittedRef.current = false;
     }
   }, [pin]);
 
@@ -94,9 +99,8 @@ export default function PinVerificationScreen({
       const clipboardContent = await Clipboard.getString();
       const trimmedContent = clipboardContent.trim();
 
-      // Allow pasting any number of digits up to 5
       if (/^\d{1,5}$/.test(trimmedContent)) {
-        setPin(trimmedContent.slice(0, pinLength)); // Paste the digits up to the allowed length
+        setPin(trimmedContent.slice(0, pinLength));
       } else {
         Alert.alert('Invalid Input', 'Clipboard does not contain a valid number.');
       }
@@ -107,7 +111,7 @@ export default function PinVerificationScreen({
 
   const handleHintPaste = () => {
     if (detectedNumber) {
-      setPin(detectedNumber); // Replaces all existing numbers
+      setPin(detectedNumber);
     }
   };
 
@@ -135,27 +139,15 @@ export default function PinVerificationScreen({
       return;
     }
 
-    const generatedPin = Math.floor(10000 + Math.random() * 90000).toString();
-
     try {
-      const expirationTime = new Date();
-      expirationTime.setMinutes(expirationTime.getMinutes() + 1);
+      const functions = getFunctions();
+      const sendPinCodeEmail = httpsCallable<SendPinCodeRequest, SendPinCodeResponse>(functions, 'sendPinCodeEmail');
+      const response = await sendPinCodeEmail({ email: originalEmail });
 
-      const pinDocRef = doc(firestore, 'pins', user.uid);
-      await setDoc(pinDocRef, {
-        pin: generatedPin,
-        createdAt: new Date(),
-        ttl: expirationTime,
-        userId: user.uid,
-      });
-
-      const emailResponse = await fetch(
-        `https://europe-west1-iot-lock-982b9.cloudfunctions.net/sendEmail?to=${originalEmail}&pin=${generatedPin}`
-      );
-
-      if (!emailResponse.ok) {
-        const errorText = await emailResponse.text();
-        throw new Error(`Failed to send email: ${errorText}`);
+      if (response.data.ttl) {
+        const ttl = response.data.ttl;
+        setPinGeneratedTime(Date.now());
+        setPinTTL(ttl);
       }
 
       Alert.alert('PIN Sent', 'A new verification PIN has been sent to your email.');
@@ -169,6 +161,12 @@ export default function PinVerificationScreen({
     const user = auth.currentUser;
     if (!user) return;
 
+    const now = Date.now();
+    if (pinGeneratedTime && pinTTL && now - pinGeneratedTime > pinTTL) {
+      Alert.alert('PIN Expired', 'Your PIN has expired. Please request a new one.');
+      return;
+    }
+
     try {
       const pinDocRef = doc(firestore, 'pins', user.uid);
       const pinDoc = await getDoc(pinDocRef);
@@ -178,28 +176,15 @@ export default function PinVerificationScreen({
         return;
       }
 
-      const { pin: storedPin, createdAt } = pinDoc.data();
-      const now = new Date();
+      const { hashedPin } = pinDoc.data();
+      const hashedEnteredPin = CryptoJS.SHA256(pin).toString();
 
-      const createdAtDate = createdAt.toDate();
-      const timeDiff = now.getTime() - createdAtDate.getTime();
-
-      const oneMinute = 60 * 1000;
-      if (pin === storedPin && timeDiff <= oneMinute) {
+      if (hashedEnteredPin === hashedPin) {
         setModalVisible(true);
         setActivationSent(true);
         await deleteDoc(pinDocRef);
-      } else if (timeDiff > oneMinute) {
-        Alert.alert(
-          'PIN Expired',
-          'Your PIN has expired. Would you like to request a new one?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Request New PIN', onPress: () => sendVerificationPin() },
-          ]
-        );
-        await deleteDoc(pinDocRef);
       } else {
+        setAttempts((prevAttempts) => prevAttempts + 1);
         Alert.alert('Error', 'Invalid PIN. Please try again.');
       }
     } catch (error) {
@@ -230,7 +215,6 @@ export default function PinVerificationScreen({
         ))}
       </View>
 
-      {/* Display the hint when a 5-digit number is detected */}
       {detectedNumber && (
         <TouchableOpacity
           style={styles.pasteHintContainer}
@@ -299,8 +283,7 @@ export default function PinVerificationScreen({
           <View style={styles.modalContent}>
             {activationSent ? (
               <Text style={styles.modalText}>
-                An activation link has been sent to your new email address:{' '}
-                {newEmail}.
+                An activation link has been sent to your new email address: {newEmail}.
               </Text>
             ) : (
               <Text style={styles.modalText}>
@@ -313,8 +296,7 @@ export default function PinVerificationScreen({
               onChange={(nextChecked) => setHasAgreed(nextChecked)}
               style={styles.checkbox}
             >
-              I understand that I need to click the verification link sent to
-              my new email for the changes to take effect.
+              I understand that I need to click the verification link sent to my new email for the changes to take effect.
             </CheckBox>
 
             <Button
