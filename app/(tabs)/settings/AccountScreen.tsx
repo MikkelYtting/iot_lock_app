@@ -18,7 +18,6 @@ const { width } = Dimensions.get('window');
 
 const isDeveloperMode = __DEV__;
 const PIN_EXPIRATION_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
-const MIN_PIN_AGE = 4 * 60 * 1000; // 4 minutes in milliseconds
 
 const devLog = (...args: any[]): void => {
   if (__DEV__) {
@@ -232,7 +231,7 @@ export default function AccountScreen() {
 
       router.push({
         pathname: '/(tabs)/settings/PinVerificationScreen',
-        params: { userEmail, isOriginalEmail: 'true', initialEntry: 'true' },
+        params: { userEmail, isOriginalEmail: 'true', initialEntry: 'true', newEmail },
       });
     } catch (error) {
       devLog('Error sending PIN:', error instanceof Error ? error.message : error);
@@ -296,7 +295,17 @@ export default function AccountScreen() {
     if (hasActivePin) {
       router.push('/(tabs)/settings/PinVerificationScreen');
     } else {
-      Alert.alert('No Active PIN', 'Please try again.');
+      Alert.alert(
+        'No Active PIN',
+        'No active PIN found. Please send a new verification PIN.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Send PIN',
+            onPress: sendVerificationPin,
+          },
+        ]
+      );
     }
   };
 

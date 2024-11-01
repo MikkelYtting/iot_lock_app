@@ -156,15 +156,27 @@ export default function PinVerificationScreen({
 
   const handlePinValidationAndEmailChange = async () => {
     const user = auth.currentUser;
-    if (!user || !newEmail) return;
+    const emailToUpdate = Array.isArray(newEmail) ? newEmail[0] : newEmail;
+
+    console.log('Current user:', user); // Check if user exists
+    console.log('New email:', emailToUpdate); // Check if newEmail exists
+
+    if (!user || !emailToUpdate) {
+      console.error('User or new email is missing');
+      Alert.alert('Error', 'User or new email is missing. Please try again.');
+      return;
+    }
 
     const now = Date.now();
+    console.log('Current time:', now, 'Pin generated time:', pinGeneratedTime, 'Pin TTL:', pinTTL);
+
     if (pinGeneratedTime && pinTTL && now - pinGeneratedTime > pinTTL) {
       Alert.alert('PIN Expired', 'Your PIN has expired. Please request a new one.');
       return;
     }
 
     try {
+      console.log('Fetching PIN document for user ID:', user.uid);
       const pinDocRef = doc(firestore, 'pins', user.uid);
       const pinDoc = await getDoc(pinDocRef);
 
@@ -176,10 +188,10 @@ export default function PinVerificationScreen({
       const { hashedPin } = pinDoc.data();
       const hashedEnteredPin = CryptoJS.SHA256(pin).toString();
 
+      console.log('Comparing hashed PINs: ', hashedEnteredPin, hashedPin);
       if (hashedEnteredPin === hashedPin) {
         await deleteDoc(pinDocRef);
 
-        const emailToUpdate = Array.isArray(newEmail) ? newEmail[0] : newEmail;
         await updateEmail(user, emailToUpdate);
         await sendEmailVerification(user);
 
