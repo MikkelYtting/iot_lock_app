@@ -293,7 +293,10 @@ export default function AccountScreen() {
   const handleGoBackToKeypad = async (): Promise<void> => {
     const hasActivePin = await checkActivePin();
     if (hasActivePin) {
-      router.push('/(tabs)/settings/PinVerificationScreen');
+      router.push({
+        pathname: '/(tabs)/settings/PinVerificationScreen',
+        params: { userEmail: email, isOriginalEmail: 'true', initialEntry: 'false', newEmail },
+      });
     } else {
       Alert.alert(
         'No Active PIN',
@@ -308,6 +311,7 @@ export default function AccountScreen() {
       );
     }
   };
+  
 
   return (
     <Layout style={styles.container}>
