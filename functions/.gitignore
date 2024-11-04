@@ -11,4 +11,6 @@ node_modules/
 
 # Ignore Firebase config files
 assets/GoogleService-Info.plist
+assets/google-services.json
+
 android/app/google-services.json
